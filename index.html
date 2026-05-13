@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JC Systems Park-Embraer</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --bg: #f0f2f5; --card: #ffffff; --text: #333333;
+            --disponivel: #2ecc71; --ocupado: #e74c3c;
+            --idoso: #3498db; --pcd: #9b59b6; --gestante: #f1c40f;
+            --primary: #003399; --header-bg: #ffffff;
+        }
+
+        [data-theme="dark"] {
+            --bg: #1a1a1a; --card: #2d2d2d; --text: #f0f0f0;
+            --header-bg: #121212; --primary: #3366ff;
+        }
+
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; transition: 0.3s; }
+        
+        .header { 
+            display: flex; align-items: center; justify-content: space-between; 
+            background: var(--header-bg); padding: 10px 20px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100;
+        }
+        .logo-img { height: 40px; }
+        .app-title { font-size: 1rem; font-weight: bold; color: var(--primary); text-align: center; flex: 1; }
+
+        .container { max-width: 1400px; margin: 15px auto; padding: 0 15px; }
+
+        .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; text-align: center; }
+        .stat-card { background: var(--card); padding: 12px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .count { font-size: 1.4rem; font-weight: bold; display: block; }
+
+        .form-cadastro { 
+            background: var(--card); padding: 15px; border-radius: 12px; 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); 
+            gap: 10px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        input { padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: var(--card); color: var(--text); }
+
+        .grid-vagas { 
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(65px, 1fr)); 
+            gap: 8px; height: 50vh; overflow-y: auto; padding: 10px;
+            background: var(--card); border-radius: 12px; border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .vaga {
+            height: 65px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; border-radius: 6px; color: white; font-weight: bold; font-size: 0.75rem;
+            background-color: var(--disponivel); border: 2px solid transparent; transition: 0.2s;
+        }
+        .vaga.ocupada { background-color: var(--ocupado) !important; border-color: transparent !important; }
+        .vaga.idoso { border-color: var(--idoso); }
+        .vaga.pcd { border-color: var(--pcd); }
+        .vaga.gestante { border-color: var(--gestante); }
+        .info-vaga { font-size: 0.45rem; margin-top: 3px; text-align: center; }
+
+        .fab-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .btn-fab { width: 45px; height: 45px; border-radius: 50%; border: none; background: var(--primary); color: white; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
+
+        #admin-panel { 
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: var(--card); padding: 25px; border-radius: 15px; 
+            box-shadow: 0 0 25px rgba(0,0,0,0.5); z-index: 1000; width: 85%; max-width: 350px;
+        }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <img src="logo_jc.png" alt="JC" class="logo-img">
+    <div class="app-title">JC SYSTEMS PARK-EMBRAER</div>
+    <img src="logo_embraer.png" alt="Embraer" class="logo-img">
+</div>
+
+<div class="container">
+    <div class="dashboard">
+        <div class="stat-card" style="color: var(--disponivel)">LIVRES <span id="livres-count" class="count">0</span></div>
+        <div class="stat-card" style="color: var(--ocupado)">OCUPADAS <span id="ocupadas-count" class="count">0</span></div>
+    </div>
+
+    <div class="form-cadastro">
+        <input type="text" id="nome" placeholder="Nome Completo">
+        <input type="number" id="cracha" placeholder="Crachá (6 dígitos)">
+        <input type="text" id="setor" placeholder="Setor">
+        <input type="password" id="senha-vaga" placeholder="Senha da Vaga (Saída)">
+    </div>
+
+    <div id="grid-vagas" class="grid-vagas"></div>
+</div>
+
+<div class="overlay" id="overlay" onclick="toggleAdmin(false)"></div>
+<div id="admin-panel">
+    <h3 style="margin-top:0">Painel do Administrador</h3>
+    <label>Vagas Totais:</label>
+    <input type="number" id="set-total" style="width:100%; margin-bottom:10px">
+    <label>Qtd. Idosos:</label>
+    <input type="number" id="set-idoso" style="width:100%; margin-bottom:10px">
+    <label>Qtd. PCD:</label>
+    <input type="number" id="set-pcd" style="width:100%; margin-bottom:10px">
+    <label>Qtd. Gestante:</label>
+    <input type="number" id="set-gestante" style="width:100%; margin-bottom:15px">
+    <button onclick="salvarConfig()" style="width:100%; padding:10px; background: var(--primary); border:none; color:white; border-radius:5px;">SALVAR CONFIGURAÇÕES</button>
+</div>
+
+<div class="fab-container">
+    <button class="btn-fab" onclick="toggleTheme()">🌓</button>
+    <button class="btn-fab" onclick="acessoAdmin()">⚙️</button>
+</div>
+
+<script>
+    // CHAVES DO SEU FIREBASE
+    const firebaseConfig = {
+        apiKey: "AIzaSyBlTbk72y1HHVjvSnR5cwOvDefhsc7niCw",
+        authDomain: "jc-systems-park-4f67b.firebaseapp.com",
+        databaseURL: "https://jc-systems-park-4f67b-default-rtdb.firebaseio.com",
+        projectId: "jc-systems-park-4f67b",
+        storageBucket: "jc-systems-park-4f67b.firebasestorage.app",
+        messagingSenderId: "741479720172",
+        appId: "1:741479720172:web:0fe85b07955b0fedb0b1c9"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const SENHA_MESTRE = "ozs1232026";
+    let config = { total: 2500, idoso: 100, pcd: 100, gestante: 100 };
+    let isAdmin = false;
+
+    // Carregar Configurações
+    db.ref('config').on('value', snap => {
+        if(snap.exists()) config = snap.val();
+        atualizarAdminInputs();
+        renderizarMapa();
+    });
+
+    function atualizarAdminInputs() {
+        document.getElementById('set-total').value = config.total;
+        document.getElementById('set-idoso').value = config.idoso;
+        document.getElementById('set-pcd').value = config.pcd;
+        document.getElementById('set-gestante').value = config.gestante;
+    }
+
+    function renderizarMapa() {
+        const grid = document.getElementById('grid-vagas');
+        grid.innerHTML = "";
+        const frag = document.createDocumentFragment();
+
+        for (let i = 1; i <= config.total; i++) {
+            const v = document.createElement('div');
+            v.id = `v-${i}`; v.className = 'vaga';
+            let label = "";
+            
+            if (i <= config.idoso) { v.classList.add('idoso'); label = "Idoso"; }
+            else if (i <= (parseInt(config.idoso) + parseInt(config.pcd))) { v.classList.add('pcd'); label = "PCD"; }
+            else if (i <= (parseInt(config.idoso) + parseInt(config.pcd) + parseInt(config.gestante))) { v.classList.add('gestante'); label = "Grávida"; }
+
+            v.innerHTML = `<span>${i}</span><div class="info-vaga" id="lbl-${i}">${label}</div>`;
+            v.onclick = () => gerenciarVaga(i);
+            frag.appendChild(v);
+        }
+        grid.appendChild(frag);
+        sincronizarVagas();
+    }
+
+    function sincronizarVagas() {
+        db.ref('vagas').on('value', snap => {
+            const ocupadas = snap.val() || {};
+            let countOcupadas = Object.keys(ocupadas).length;
+            
+            document.getElementById('livres-count').innerText = config.total - countOcupadas;
+            document.getElementById('ocupadas-count').innerText = countOcupadas;
+
+            document.querySelectorAll('.vaga.ocupada').forEach(el => el.classList.remove('ocupada'));
+            for (let id in ocupadas) {
+                const el = document.getElementById(`v-${id}`);
+                const lbl = document.getElementById(`lbl-${id}`);
+                if (el) {
+                    el.classList.add('ocupada');
+                    lbl.innerText = isAdmin ? ocupadas[id].cracha : "OCUPADA";
+                }
+            }
+        });
+    }
+
+    function gerenciarVaga(n) {
+        const ref = db.ref('vagas/' + n);
+        ref.once('value', snap => {
+            if (snap.exists()) {
+                const dadosVaga = snap.val();
+                const senhaDigitada = prompt(`Vaga ${n} Ocupada.\nDigite a SENHA DA VAGA para sair ou a SENHA MESTRE:`);
+                
+                if (senhaDigitada === dadosVaga.senha || senhaDigitada === SENHA_MESTRE) {
+                    ref.remove();
+                    alert("Vaga liberada com sucesso!");
+                } else if (senhaDigitada !== null) {
+                    alert("Senha incorreta!");
+                }
+            } else {
+                const nome = document.getElementById('nome').value;
+                const cracha = document.getElementById('cracha').value;
+                const senha = document.getElementById('senha-vaga').value;
+
+                if (!nome || cracha.length !== 6 || !senha) {
+                    alert("Preencha Nome, Crachá e defina uma Senha de Saída!");
+                    return;
+                }
+
+                ref.set({
+                    nome, cracha, setor: document.getElementById('setor').value,
+                    senha: senha, data: new Date().toLocaleString()
+                });
+                // Limpa senha após estacionar para segurança
+                document.getElementById('senha-vaga').value = "";
+                alert(`Vaga ${n} ocupada! Guarde sua senha para sair.`);
+            }
+        });
+    }
+
+    function acessoAdmin() {
+        const pass = prompt("Senha Mestre do Sistema:");
+        if(pass === SENHA_MESTRE) {
+            isAdmin = !isAdmin;
+            if(isAdmin) toggleAdmin(true);
+            renderizarMapa();
+            alert(isAdmin ? "Modo Administrador Ativado" : "Modo Administrador Desativado");
+        } else {
+            alert("Acesso Negado!");
+        }
+    }
+
+    function toggleAdmin(show) {
+        document.getElementById('admin-panel').style.display = show ? 'block' : 'none';
+        document.getElementById('overlay').style.display = show ? 'block' : 'none';
+    }
+
+    function salvarConfig() {
+        const novaConfig = {
+            total: parseInt(document.getElementById('set-total').value),
+            idoso: parseInt(document.getElementById('set-idoso').value),
+            pcd: parseInt(document.getElementById('set-pcd').value),
+            gestante: parseInt(document.getElementById('set-gestante').value)
+        };
+        db.ref('config').set(novaConfig).then(() => {
+            toggleAdmin(false);
+            alert("Configurações atualizadas!");
+        });
+    }
+
+    function toggleTheme() {
+        const theme = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        document.body.setAttribute('data-theme', theme);
+    }
+</script>
+</body>
+</html>

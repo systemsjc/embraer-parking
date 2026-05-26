@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JC Systems Park-Embraer</title>
     
+    <!-- CDNs das Bibliotecas Necessárias -->
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
@@ -12,7 +13,7 @@
         :root {
             --bg: #f0f2f5; --card: #ffffff; --text: #333333;
             --disponivel: #2ecc71; --ocupado: #e74c3c;
-            --idoso: #3498db; --pcd: #9b59b6; --gestante: #f1c40f; --visitante: #e67e22;
+            --idoso: #3498db; --pcd: #9b59b6; --gestante: #f1c40f; --privativo: #e67e22;
             --alerta: #f39c12; --primary: #003399; --header-bg: #ffffff;
         }
 
@@ -33,6 +34,14 @@
 
         .container { max-width: 1400px; margin: 15px auto; padding: 0 15px; }
 
+        /* Seleção de Estacionamento */
+        .patio-selector { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; }
+        .btn-patio { 
+            padding: 12px 25px; border: none; border-radius: 8px; font-weight: bold; 
+            background: var(--card); color: var(--text); cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .btn-patio.active { background: var(--primary); color: white; }
+
         .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; text-align: center; }
         .stat-card { background: var(--card); padding: 12px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         .count { font-size: 1.4rem; font-weight: bold; display: block; }
@@ -45,8 +54,8 @@
         input, select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: var(--card); color: var(--text); font-size: 14px; }
 
         .grid-vagas { 
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(65px, 1fr)); 
-            gap: 8px; height: 50vh; overflow-y: auto; padding: 10px;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); 
+            gap: 8px; height: 45vh; overflow-y: auto; padding: 10px;
             background: var(--card); border-radius: 12px; border: 1px solid rgba(0,0,0,0.1);
         }
 
@@ -59,31 +68,41 @@
         .vaga.idoso { border-color: var(--idoso); }
         .vaga.pcd { border-color: var(--pcd); }
         .vaga.gestante { border-color: var(--gestante); }
-        .vaga.visitante { border-color: var(--visitante); }
+        .vaga.privativo { border-color: var(--privativo); }
         
-        /* Animação de Alerta de Horário Excedido */
-        @keyframes piscarAlerta {
-            0% { background-color: var(--ocupado); }
-            50% { background-color: var(--alerta); }
-            100% { background-color: var(--ocupado); }
-        }
+        @keyframes piscarAlerta { 0% { background-color: var(--ocupado); } 50% { background-color: var(--alerta); } 100% { background-color: var(--ocupado); } }
         .vaga.excedido { animation: piscarAlerta 1.5s infinite; box-shadow: 0 0 10px var(--alerta); }
-
         .info-vaga { font-size: 0.45rem; margin-top: 3px; text-align: center; }
 
         .fab-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 101; }
         .btn-fab { width: 45px; height: 45px; border-radius: 50%; border: none; background: var(--primary); color: white; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
 
-        #admin-panel { 
+        /* Modais */
+        .modal { 
             display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: var(--card); padding: 25px; border-radius: 15px; 
-            box-shadow: 0 0 25px rgba(0,0,0,0.5); z-index: 1000; width: 85%; max-width: 350px;
+            box-shadow: 0 0 25px rgba(0,0,0,0.5); z-index: 1000; width: 85%; max-width: 450px;
             max-height: 80vh; overflow-y: auto;
         }
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999; }
+        
+        /* Termo LGPD */
+        #lgpd-modal { display: none; z-index: 2000; max-width: 500px; }
+        .lgpd-text { font-size: 0.85rem; height: 150px; overflow-y: scroll; border: 1px solid #ddd; padding: 10px; margin-bottom: 15px; border-radius: 5px; }
     </style>
 </head>
 <body>
+
+<!-- Consentimento LGPD -->
+<div class="overlay" id="lgpd-overlay" style="display:block; z-index:1999;"></div>
+<div class="modal" id="lgpd-modal" style="display:block;">
+    <h3 style="margin-top:0; color: var(--primary)">Termo de Consentimento LGPD</h3>
+    <div class="lgpd-text">
+        Em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), o aplicativo <strong>JC Systems Park-Embraer</strong> solicita seu consentimento para coletar e tratar dados pessoais (Nome, Chapa, Setor e Placa do Veículo). 
+        Estes dados são coletados estritamente para finalidades de controle de acesso, segurança patrimonial, auditoria interna e monitoramento do tempo de permanência no pátio da instituição. Os dados serão armazenados em ambiente em nuvem seguro e não serão compartilhados com terceiros. Você pode solicitar a revogação do acesso ou exclusão dos dados através da administração de segurança patrimonial a qualquer momento.
+    </div>
+    <button onclick="aceitarLGPD()" style="width:100%; padding:12px; background: var(--disponivel); border:none; color:white; border-radius:8px; font-weight:bold; cursor:pointer;">DECLARO QUE LI E ACEITO OS TERMOS</button>
+</div>
 
 <div class="header">
     <img src="logo_jc.png" alt="JC" class="logo-img">
@@ -92,6 +111,12 @@
 </div>
 
 <div class="container">
+    <div class="patio-selector">
+        <button class="btn-patio active" id="btn-A" onclick="mudarPatio('A')">Estacionamento A</button>
+        <button class="btn-patio" id="btn-B" onclick="mudarPatio('B')">Estacionamento B</button>
+        <button class="btn-patio" id="btn-C" onclick="mudarPatio('C')">Estacionamento C</button>
+    </div>
+
     <div class="dashboard">
         <div class="stat-card" style="color: var(--disponivel)">LIVRES <span id="livres-count" class="count">0</span></div>
         <div class="stat-card" style="color: var(--ocupado)">OCUPADAS <span id="ocupadas-count" class="count">0</span></div>
@@ -99,10 +124,11 @@
 
     <div class="form-cadastro">
         <input type="text" id="nome" placeholder="Nome Completo">
-        <input type="number" id="cracha" placeholder="Crachá (6 dígitos)">
+        <input type="number" id="cracha" placeholder="Chapa (8 dígitos)" oninput="if(this.value.length > 8) this.value = this.value.slice(0,8)">
+        <input type="text" id="placa" placeholder="Placa do Veículo" style="text-transform: uppercase;">
         <input type="text" id="setor" placeholder="Setor">
         <select id="tipo-usuario">
-            <option value="funcionario">Funcionário (Tempo Padrão)</option>
+            <option value="funcionario">Funcionário (Comum)</option>
             <option value="visitante">Visitante</option>
         </select>
         <input type="password" id="senha-vaga" placeholder="Senha da Vaga (Saída)">
@@ -111,28 +137,28 @@
     <div id="grid-vagas" class="grid-vagas"></div>
 </div>
 
-<div class="overlay" id="overlay" onclick="toggleAdmin(false)"></div>
-<div id="admin-panel">
-    <h3 style="margin-top:0">Painel do Administrador</h3>
-    <label>Vagas Totais:</label>
-    <input type="number" id="set-total" style="width:100%; margin-bottom:10px">
-    <label>Qtd. Idosos:</label>
-    <input type="number" id="set-idoso" style="width:100%; margin-bottom:10px">
-    <label>Qtd. PCD:</label>
-    <input type="number" id="set-pcd" style="width:100%; margin-bottom:10px">
-    <label>Qtd. Gestante:</label>
-    <input type="number" id="set-gestante" style="width:100%; margin-bottom:10px">
-    <label>Qtd. Visitante:</label>
-    <input type="number" id="set-visitante" style="width:100%; margin-bottom:15px">
-    
-    <hr>
-    <h4 style="margin: 10px 0 5px 0">Tempo Limite (Minutos)</h4>
-    <label>Tempo Funcionários:</label>
-    <input type="number" id="time-funcionario" style="width:100%; margin-bottom:10px" placeholder="Ex: 480">
-    <label>Tempo Visitantes:</label>
-    <input type="number" id="time-visitante" style="width:100%; margin-bottom:15px" placeholder="Ex: 120">
+<div class="overlay" id="overlay" onclick="toggleModal(null, false)"></div>
 
-    <button onclick="salvarConfig()" style="width:100%; padding:10px; background: var(--primary); border:none; color:white; border-radius:5px;">SALVAR CONFIGURAÇÕES</button>
+<!-- Painel do Administrador -->
+<div class="modal" id="admin-panel">
+    <h3 style="margin-top:0; color: var(--primary)">Painel Administrativo</h3>
+    <div style="display:flex; justify-content: space-between; margin-bottom:15px;">
+        <button onclick="exportarRelatorio()" style="padding:10px; background:#2980b9; border:none; color:white; border-radius:5px; cursor:pointer;">📊 Exportar Logs (CSV)</button>
+        <button onclick="verFuncionarios()" style="padding:10px; background:#27ae60; border:none; color:white; border-radius:5px; cursor:pointer;">👥 Base Funcionários</button>
+    </div>
+    <hr>
+    <h4 style="margin:10px 0">Parametrização do Pátio Ativo</h4>
+    <label>Vagas Totais:</label><input type="number" id="set-total" style="width:100%; margin-bottom:10px">
+    <label>Qtd. Idosos:</label><input type="number" id="set-idoso" style="width:100%; margin-bottom:10px">
+    <label>Qtd. PCD:</label><input type="number" id="set-pcd" style="width:100%; margin-bottom:10px">
+    <label>Qtd. Gestante:</label><input type="number" id="set-gestante" style="width:100%; margin-bottom:10px">
+    <label>Qtd. Privativo:</label><input type="number" id="set-privativo" style="width:100%; margin-bottom:10px">
+    
+    <h4 style="margin:10px 0">Tempos Máximos (Minutos)</h4>
+    <label>Funcionários:</label><input type="number" id="time-funcionario" style="width:100%; margin-bottom:10px">
+    <label>Visitantes:</label><input type="number" id="time-visitante" style="width:100%; margin-bottom:15px">
+
+    <button onclick="salvarConfig()" style="width:100%; padding:10px; background: var(--primary); border:none; color:white; border-radius:5px;">SALVAR CONFIGURAÇÕES PÁTIO</button>
 </div>
 
 <div class="fab-container">
@@ -155,25 +181,47 @@
     const db = firebase.database();
     const SENHA_MESTRE = "ozs1232026";
     
-    let config = { 
-        total: 2500, idoso: 100, pcd: 100, gestante: 100, visitante: 100,
-        tempoFunc: 480, tempoVis: 120 
-    };
+    let patioAtual = 'A';
+    let config = { total: 2500, idoso: 100, pcd: 100, gestante: 100, privativo: 100, tempoFunc: 480, tempoVis: 120 };
     let isAdmin = false;
     let dadosLocaisVagas = {};
 
-    db.ref('config').on('value', snap => {
-        if(snap.exists()) config = snap.val();
-        atualizarAdminInputs();
-        renderizarMapa();
-    });
+    // Validação LGPD LocalStorage
+    if(localStorage.getItem('park_lgpd_accepted') === 'true') {
+        fecharLGPD();
+    }
+
+    function aceitarLGPD() {
+        localStorage.setItem('park_lgpd_accepted', 'true');
+        fecharLGPD();
+    }
+    function fecharLGPD() {
+        document.getElementById('lgpd-modal').style.display = 'none';
+        document.getElementById('lgpd-overlay').style.display = 'none';
+    }
+
+    function mudarPatio(letra) {
+        patioAtual = letra;
+        document.querySelectorAll('.btn-patio').forEach(b => b.classList.remove('active'));
+        document.getElementById(`btn-${letra}`).classList.add('active');
+        carregarConfigPatio();
+    }
+
+    function carregarConfigPatio() {
+        db.ref(`config/${patioAtual}`).on('value', snap => {
+            if(snap.exists()) config = snap.val();
+            else config = { total: 1000, idoso: 20, pcd: 20, gestante: 20, privativo: 20, tempoFunc: 480, tempoVis: 120 };
+            atualizarAdminInputs();
+            renderizarMapa();
+        });
+    }
 
     function atualizarAdminInputs() {
         document.getElementById('set-total').value = config.total;
         document.getElementById('set-idoso').value = config.idoso;
         document.getElementById('set-pcd').value = config.pcd;
         document.getElementById('set-gestante').value = config.gestante;
-        document.getElementById('set-visitante').value = config.visitante || 100;
+        document.getElementById('set-privativo').value = config.privativo || 50;
         document.getElementById('time-funcionario').value = config.tempoFunc || 480;
         document.getElementById('time-visitante').value = config.tempoVis || 120;
     }
@@ -186,7 +234,7 @@
         const limiteIdoso = parseInt(config.idoso);
         const limitePcd = limiteIdoso + parseInt(config.pcd);
         const limiteGestante = limitePcd + parseInt(config.gestante);
-        const limiteVisitante = limiteGestante + parseInt(config.visitante || 100);
+        const limitePrivativo = limiteGestante + parseInt(config.privativo || 50);
 
         for (let i = 1; i <= config.total; i++) {
             const v = document.createElement('div');
@@ -196,9 +244,9 @@
             if (i <= limiteIdoso) { v.classList.add('idoso'); label = "Idoso"; }
             else if (i <= limitePcd) { v.classList.add('pcd'); label = "PCD"; }
             else if (i <= limiteGestante) { v.classList.add('gestante'); label = "Grávida"; }
-            else if (i <= limiteVisitante) { v.classList.add('visitante'); label = "Visita"; }
+            else if (i <= limitePrivativo) { v.classList.add('privativo'); label = "Privat."; }
 
-            v.innerHTML = `<span>${i}</span><div class="info-vaga" id="lbl-${i}">${label}</div>`;
+            v.innerHTML = `<span>${patioAtual}-${i}</span><div class="info-vaga" id="lbl-${i}">${label}</div>`;
             v.onclick = () => gerenciarVaga(i);
             frag.appendChild(v);
         }
@@ -207,97 +255,102 @@
     }
 
     function sincronizarVagas() {
-        db.ref('vagas').on('value', snap => {
+        db.ref(`vagas/${patioAtual}`).on('value', snap => {
             dadosLocaisVagas = snap.val() || {};
             let countOcupadas = Object.keys(dadosLocaisVagas).length;
             
             document.getElementById('livres-count').innerText = config.total - countOcupadas;
             document.getElementById('ocupadas-count').innerText = countOcupadas;
 
-            document.querySelectorAll('.vaga.ocupada').forEach(el => {
-                el.classList.remove('ocupada', 'excedido');
-            });
-
+            document.querySelectorAll('.vaga.ocupada').forEach(el => el.classList.remove('ocupada', 'excedido'));
             verificarHorariosExcedidos();
         });
     }
 
     function verificarHorariosExcedidos() {
         const agora = new Date().getTime();
-
         for (let id in dadosLocaisVagas) {
             const el = document.getElementById(`v-${id}`);
             const lbl = document.getElementById(`lbl-${id}`);
-            
             if (el) {
                 el.classList.add('ocupada');
                 lbl.innerText = isAdmin ? dadosLocaisVagas[id].cracha : "OCUPADA";
 
-                // Cálculo do tempo de permanência
                 const tempoDecorridoMinutos = Math.floor((agora - dadosLocaisVagas[id].timestamp) / 60000);
                 const limitePermitido = dadosLocaisVagas[id].tipo === 'visitante' ? config.tempoVis : config.tempoFunc;
 
                 if (tempoDecorridoMinutos >= limitePermitido) {
                     el.classList.add('excedido');
-                    if (!isAdmin) lbl.innerText = "ALERTA TEMPO";
+                    if (!isAdmin) lbl.innerText = "EXCEDIDO";
                 }
             }
         }
     }
 
-    // Loop de varredura a cada 30 segundos para atualizar os alertas em tempo real
     setInterval(verificarHorariosExcedidos, 30000);
 
     function gerenciarVaga(n) {
-        const ref = db.ref('vagas/' + n);
+        const ref = db.ref(`vagas/${patioAtual}/${n}`);
         ref.once('value', snap => {
             if (snap.exists()) {
                 const dadosVaga = snap.val();
-                const senhaDigitada = prompt(`Vaga ${n} Ocupada.\nDigite a SENHA DA VAGA para sair ou a SENHA MESTRE:`);
+                const senhaDigitada = prompt(`Estacionamento ${patioAtual} - Vaga ${n} Ocupada.\nDigite a senha de saída ou senha mestre:`);
                 
                 if (senhaDigitada === dadosVaga.senha || senhaDigitada === SENHA_MESTRE || senhaDigitada === "admin123") {
+                    // Registrar Log Histórico de Saída
+                    db.ref('logs_acessos').push({
+                        ...dadosVaga,
+                        patio: patioAtual,
+                        vaga: n,
+                        evento: 'SAIDA',
+                        timestamp_evento: new Date().toLocaleString()
+                    });
                     ref.remove();
-                    alert("Vaga liberada com sucesso!");
-                } else if (senhaDigitada !== null) {
-                    alert("Senha incorreta!");
-                }
+                    alert("Vaga liberada!");
+                } else if (senhaDigitada !== null) alert("Senha incorreta!");
             } else {
                 const nome = document.getElementById('nome').value;
                 const cracha = document.getElementById('cracha').value;
+                const placa = document.getElementById('placa').value.toUpperCase();
                 const senha = document.getElementById('senha-vaga').value;
                 const tipo = document.getElementById('tipo-usuario').value;
 
-                if (!nome || cracha.length !== 6 || !senha) {
-                    alert("Preencha Nome, Crachá e defina uma Senha de Saída!");
+                if (!nome || cracha.length !== 8 || !placa || !senha) {
+                    alert("Dados incompletos ou Chapa fora do padrão de 8 dígitos!");
                     return;
                 }
 
-                ref.set({
-                    nome, cracha, setor: document.getElementById('setor').value,
-                    tipo, senha, timestamp: new Date().getTime()
-                });
+                const payload = {
+                    nome, cracha, placa, setor: document.getElementById('setor').value,
+                    tipo, senha, timestamp: new Date().getTime(), data_entrada: new Date().toLocaleString()
+                };
+
+                // Salva na vaga e espelha no cadastro geral de funcionários (LGPD seguro)
+                ref.set(payload);
+                db.ref(`funcionarios/${cracha}`).set({ nome, cracha, placa, setor: document.getElementById('setor').value });
                 
+                // Grava no log histórico
+                db.ref('logs_acessos').push({ ...payload, patio: patioAtual, vaga: n, evento: 'ENTRADA', timestamp_evento: new Date().toLocaleString() });
+
                 document.getElementById('senha-vaga').value = "";
-                alert(`Vaga ${n} ocupada! Limite de tempo monitorado.`);
+                alert(`Vaga ${patioAtual}-${n} confirmada!`);
             }
         });
     }
 
     function acessoAdmin() {
-        const pass = prompt("Senha do Sistema:");
+        const pass = prompt("Acesso Administrativo:");
         if(pass === SENHA_MESTRE || pass === "admin123") {
             isAdmin = !isAdmin;
-            if(isAdmin) toggleAdmin(true);
+            toggleModal('admin-panel', isAdmin);
             renderizarMapa();
-            alert(isAdmin ? "Modo Administrador Ativado" : "Modo Administrador Desativado");
-        } else {
-            alert("Acesso Negado!");
-        }
+        } else alert("Acesso Negado!");
     }
 
-    function toggleAdmin(show) {
-        document.getElementById('admin-panel').style.display = show ? 'block' : 'none';
+    function toggleModal(id, show) {
+        document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
         document.getElementById('overlay').style.display = show ? 'block' : 'none';
+        if(show && id) document.getElementById(id).style.style.display = 'block';
     }
 
     function salvarConfig() {
@@ -306,13 +359,45 @@
             idoso: parseInt(document.getElementById('set-idoso').value),
             pcd: parseInt(document.getElementById('set-pcd').value),
             gestante: parseInt(document.getElementById('set-gestante').value),
-            visitante: parseInt(document.getElementById('set-visitante').value),
+            privativo: parseInt(document.getElementById('set-privativo').value),
             tempoFunc: parseInt(document.getElementById('time-funcionario').value),
             tempoVis: parseInt(document.getElementById('time-visitante').value)
         };
-        db.ref('config').set(novaConfig).then(() => {
-            toggleAdmin(false);
-            alert("Configurações e tempos de permanência salvos!");
+        db.ref(`config/${patioAtual}`).set(novaConfig).then(() => {
+            toggleModal(null, false);
+            isAdmin = false;
+            alert("Configurações do pátio salvas!");
+        });
+    }
+
+    function verFuncionarios() {
+        db.ref('funcionarios').once('value', snap => {
+            if(!snap.exists()) return alert("Nenhum funcionário cadastrado.");
+            let lista = "BASE DE FUNCIONÁRIOS REGISTRADOS:\n\n";
+            snap.forEach(f => {
+                const val = f.val();
+                lista += `Chapa: ${val.cracha} | Nome: ${val.nome} | Placa: ${val.placa} | Setor: ${val.setor}\n`;
+            });
+            alert(lista);
+        });
+    }
+
+    function exportarRelatorio() {
+        db.ref('logs_acessos').once('value', snap => {
+            if(!snap.exists()) return alert("Sem dados para exportação.");
+            let csv = "Data Evento,Evento,Patio,Vaga,Nome,Chapa,Placa,Setor,Tipo\n";
+            snap.forEach(child => {
+                const d = child.val();
+                csv += `"${d.timestamp_evento}","${d.evento}","${d.patio}","${d.vaga}","${d.nome}","${d.cracha}","${d.placa}","${d.setor}","${d.tipo}"\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", `relatorio_patio_${new Date().toLocaleDateString()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         });
     }
 
@@ -320,6 +405,9 @@
         const theme = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
         document.body.setAttribute('data-theme', theme);
     }
+
+    // Inicialização da aplicação
+    carregarConfigPatio();
 </script>
 </body>
 </html>

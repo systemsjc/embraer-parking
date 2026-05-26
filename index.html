@@ -99,7 +99,7 @@
     <h3 style="margin-top:0; color: var(--primary)">Termo de Consentimento LGPD</h3>
     <div class="lgpd-text">
         Em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), o aplicativo <strong>JC Systems Park-Embraer</strong> solicita seu consentimento para coletar e tratar dados pessoais (Nome, Chapa, Setor e Placa do Veículo). 
-        Estes dados são coletados estritamente para finalidades de controle de acesso, segurança patrimonial, auditoria interna e monitoramento do tempo de permanência no pátio da instituição. Os dados serão armazenados em ambiente em nuvem seguro e não serão compartilhados com terceiros. Você pode solicitar a revogação do acesso ou exclusão dos dados através da administração de segurança patrimonial a qualquer momento.
+        Estes dados são coletados estritamente para finalidades de controle de acesso, segurança patrimonial, auditoria interna e monitoring do tempo de permanência no pátio da instituição. Os dados serão armazenados em ambiente em nuvem seguro e não serão compartilhados com terceiros. Você pode solicitar a revogação do acesso ou exclusão dos dados através da administração de segurança patrimonial a qualquer momento.
     </div>
     <button onclick="aceitarLGPD()" style="width:100%; padding:12px; background: var(--disponivel); border:none; color:white; border-radius:8px; font-weight:bold; cursor:pointer;">DECLARO QUE LI E ACEITO OS TERMOS</button>
 </div>
@@ -142,9 +142,9 @@
 <!-- Painel do Administrador -->
 <div class="modal" id="admin-panel">
     <h3 style="margin-top:0; color: var(--primary)">Painel Administrativo</h3>
-    <div style="display:flex; justify-content: space-between; margin-bottom:15px;">
-        <button onclick="exportarRelatorio()" style="padding:10px; background:#2980b9; border:none; color:white; border-radius:5px; cursor:pointer;">📊 Exportar Logs (CSV)</button>
-        <button onclick="verFuncionarios()" style="padding:10px; background:#27ae60; border:none; color:white; border-radius:5px; cursor:pointer;">👥 Base Funcionários</button>
+    <div style="display:flex; justify-content: space-between; margin-bottom:15px; gap: 10px;">
+        <button onclick="exportarRelatorio()" style="flex:1; padding:10px; background:#2980b9; border:none; color:white; border-radius:5px; cursor:pointer; font-weight:bold;">📊 Logs (CSV)</button>
+        <button onclick="verFuncionarios()" style="flex:1; padding:10px; background:#27ae60; border:none; color:white; border-radius:5px; cursor:pointer; font-weight:bold;">👥 Funcionários</button>
     </div>
     <hr>
     <h4 style="margin:10px 0">Parametrização do Pátio Ativo</h4>
@@ -158,7 +158,7 @@
     <label>Funcionários:</label><input type="number" id="time-funcionario" style="width:100%; margin-bottom:10px">
     <label>Visitantes:</label><input type="number" id="time-visitante" style="width:100%; margin-bottom:15px">
 
-    <button onclick="salvarConfig()" style="width:100%; padding:10px; background: var(--primary); border:none; color:white; border-radius:5px;">SALVAR CONFIGURAÇÕES PÁTIO</button>
+    <button onclick="salvarConfig()" style="width:100%; padding:10px; background: var(--primary); border:none; color:white; border-radius:5px; font-weight:bold; cursor:pointer;">SALVAR CONFIGURAÇÕES PÁTIO</button>
 </div>
 
 <div class="fab-container">
@@ -297,13 +297,8 @@
                 const senhaDigitada = prompt(`Estacionamento ${patioAtual} - Vaga ${n} Ocupada.\nDigite a senha de saída ou senha mestre:`);
                 
                 if (senhaDigitada === dadosVaga.senha || senhaDigitada === SENHA_MESTRE || senhaDigitada === "admin123") {
-                    // Registrar Log Histórico de Saída
                     db.ref('logs_acessos').push({
-                        ...dadosVaga,
-                        patio: patioAtual,
-                        vaga: n,
-                        evento: 'SAIDA',
-                        timestamp_evento: new Date().toLocaleString()
+                        ...dadosVaga, patio: patioAtual, vaga: n, evento: 'SAIDA', timestamp_evento: new Date().toLocaleString()
                     });
                     ref.remove();
                     alert("Vaga liberada!");
@@ -325,11 +320,8 @@
                     tipo, senha, timestamp: new Date().getTime(), data_entrada: new Date().toLocaleString()
                 };
 
-                // Salva na vaga e espelha no cadastro geral de funcionários (LGPD seguro)
                 ref.set(payload);
                 db.ref(`funcionarios/${cracha}`).set({ nome, cracha, placa, setor: document.getElementById('setor').value });
-                
-                // Grava no log histórico
                 db.ref('logs_acessos').push({ ...payload, patio: patioAtual, vaga: n, evento: 'ENTRADA', timestamp_evento: new Date().toLocaleString() });
 
                 document.getElementById('senha-vaga').value = "";
@@ -347,10 +339,11 @@
         } else alert("Acesso Negado!");
     }
 
+    // FUNÇÃO CORRIGIDA AQUI
     function toggleModal(id, show) {
         document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
         document.getElementById('overlay').style.display = show ? 'block' : 'none';
-        if(show && id) document.getElementById(id).style.style.display = 'block';
+        if(show && id) document.getElementById(id).style.display = 'block';
     }
 
     function salvarConfig() {

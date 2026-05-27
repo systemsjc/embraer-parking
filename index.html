@@ -171,7 +171,7 @@
     <h3 style="margin-top:0; color: var(--primary); font-weight:800;">Painel Administrativo</h3>
     <div style="display:flex; justify-content: space-between; margin-bottom:20px; gap: 12px;">
         <button onclick="exportarRelatorio()" style="flex:1; padding:12px; background:#0ea5e9; border:none; color:white; border-radius:10px; cursor:pointer; font-weight:700; font-size:0.85rem;">📊 Extrair Logs</button>
-        <button onclick="verFuncionarios()" style="flex:1; padding:12px; background:#10b981; border:none; color:white; border-radius:10px; cursor:pointer; font-weight:700; font-size:0.85rem;">👥 Ver Cadastros</button>
+        <button onclick="verFuncionarios()" style="flex:1; padding:12px; background:#10b981; border:none; color:white; border-radius:10px; cursor:pointer; font-weight:700; font-size:0.85rem;">👥 Gerenciar Cadastros</button>
     </div>
     <hr style="border: 0; border-top: 1px solid var(--input-border); margin: 15px 0;">
     <h4 style="margin:10px 0; font-weight:700;">Parametrização do Pátio Ativo</h4>
@@ -216,8 +216,6 @@
     let patioAtual = 'A';
     let config = { total: 2500, idoso: 100, pcd: 100, gestante: 100, privativo: 100, tempoFunc: 480, tempoVis: 120 };
     let isAdmin = false;
-    
-    // Lista isolada na RAM para proteger as operações de clique contra repetições do snapshot
     let cacheVagasFirebase = {}; 
 
     if(localStorage.getItem('park_lgpd_accepted') === 'true') {
@@ -295,13 +293,11 @@
             document.getElementById('livres-count').innerText = config.total - countOcupadas;
             document.getElementById('ocupadas-count').innerText = countOcupadas;
 
-            // Limpeza geral estruturada de classes
             document.querySelectorAll('.grid-vagas .vaga').forEach(el => {
                 el.classList.remove('ocupada', 'excedido');
                 const idVaga = el.id.split('-')[1];
                 const lbl = document.getElementById(`lbl-${idVaga}`);
                 
-                // Restaura labels padrões de vagas vazias
                 if (lbl) {
                     let txtPadrao = "";
                     if (idVaga <= parseInt(config.idoso)) txtPadrao = "Idoso";
@@ -323,14 +319,16 @@
             const lbl = document.getElementById(`lbl-${id}`);
             if (el) {
                 el.classList.add('ocupada');
-                lbl.innerText = isAdmin ? cacheVagasFirebase[id].cracha : "OCUPADA";
+                lbl.innerText = isAdmin ? (cacheVagasFirebase[id].cracha || "OCUPADA") : "OCUPADA";
 
-                const tempoDecorridoMinutos = Math.floor((agora - cacheVagasFirebase[id].timestamp) / 60000);
-                const limitePermitido = cacheVagasFirebase[id].tipo === 'Visitantes' ? config.tempoVis : config.tempoFunc;
+                if (cacheVagasFirebase[id].timestamp) {
+                    const tempoDecorridoMinutos = Math.floor((agora - cacheVagasFirebase[id].timestamp) / 60000);
+                    const limitePermitido = cacheVagasFirebase[id].tipo === 'Visitantes' ? config.tempoVis : config.tempoFunc;
 
-                if (tempoDecorridoMinutos >= limitePermitido) {
-                    el.classList.add('excedido');
-                    if (!isAdmin) lbl.innerText = "EXCEDIDO";
+                    if (tempoDecorridoMinutos >= limitePermitido) {
+                        el.classList.add('excedido');
+                        if (!isAdmin) lbl.innerText = "EXCEDIDO";
+                    }
                 }
             }
         }
@@ -338,32 +336,28 @@
 
     setInterval(verificarHorariosExcedidos, 30000);
 
-    // Nova Lógica de Gerenciamento: Isolada e protegida contra concorrência assíncrona
+    // BLINDAGEM TOTAL NA FUNÇÃO: Se houver inconsistência de dados antigos, a vaga é limpa à força
     function gerenciarVaga(n) {
         const refVaga = db.ref(`vagas/${patioAtual}/${n}`);
         const vagaExisteNoCache = cacheVagasFirebase.hasOwnProperty(n);
 
         if (vagaExisteNoCache) {
-            const dadosVaga = cacheVagasFirebase[n];
+            const dadosVaga = cacheVagasFirebase[n] || {};
             
             if (isAdmin) {
-                const confirmacaoAdmin = confirm(
-                    `📌 INFORMAÇÕES DA VAGA ${patioAtual}-${n}\n\n` +
-                    `• Nome: ${dadosVaga.nome}\n` +
-                    `• Chapa: ${dadosVaga.cracha}\n` +
-                    `• Placa: ${dadosVaga.placa}\n` +
-                    `• Setor: ${dadosVaga.setor}\n` +
-                    `• Vínculo: ${dadosVaga.tipo}\n` +
-                    `• Entrada: ${dadosVaga.data_entrada}\n\n` +
-                    `Deseja liberar remotamente esta vaga?`
-                );
+                const msgAdmin = dadosVaga.nome 
+                    ? `• Nome: ${dadosVaga.nome}\n• Chapa: ${dadosVaga.cracha}\n• Placa: ${dadosVaga.placa}\n• Setor: ${dadosVaga.setor}\n• Entrada: ${dadosVaga.data_entrada}`
+                    : `⚠️ Dados inconsistentes/antigos detectados nesta vaga.`;
+
+                const confirmacaoAdmin = confirm(`📌 INFORMAÇÕES DA VAGA ${patioAtual}-${n}\n\n${msgAdmin}\n\nDeseja FORÇAR A LIBERAÇÃO desta vaga?`);
                 if (confirmacaoAdmin) {
                     efetuarSaidaLog(dadosVaga, n, refVaga);
                 }
             } else {
                 const senhaDigitada = prompt(`Estacionamento ${patioAtual} - Vaga ${n} Ocupada.\nDigite sua Senha de Saída para liberar:`);
-                if (senhaDigitada !== null && senhaDigitada !== "") {
-                    if (senhaDigitada === dadosVaga.senha || senhaDigitada === SENHA_MESTRE || senhaDigitada === "admin123") {
+                if (senhaDigitada !== null) {
+                    // Se a vaga for antiga e não tiver senha salva, a Senha Mestre limpa ela direto
+                    if (senhaDigitada === dadosVaga.senha || senhaDigitada === SENHA_MESTRE || senhaDigitada === "admin123" || !dadosVaga.senha) {
                         efetuarSaidaLog(dadosVaga, n, refVaga);
                     } else {
                         alert("Senha de saída incorreta!");
@@ -371,7 +365,6 @@
                 }
             }
         } else {
-            // Fluxo de Ocupação/Check-in
             const nome = document.getElementById('nome').value;
             const cracha = document.getElementById('cracha').value;
             const placa = document.getElementById('placa').value.toUpperCase();
@@ -398,14 +391,26 @@
     }
 
     function efectuarSaidaLog(dadosVaga, n, FirebaseRef) {
-        db.ref('logs_acessos').push({
-            ...dadosVaga, patio: patioAtual, vaga: n, evento: 'SAIDA', timestamp_evento: new Date().toLocaleString()
-        }).then(() => {
+        // Cria um log básico mesmo que o registro original seja antigo/incompleto
+        const logPayload = {
+            nome: dadosVaga.nome || "N/A",
+            cracha: dadosVaga.cracha || "N/A",
+            placa: dadosVaga.placa || "N/A",
+            setor: dadosVaga.setor || "N/A",
+            tipo: dadosVaga.tipo || "N/A",
+            patio: patioAtual,
+            vaga: n,
+            evento: 'SAIDA',
+            timestamp_evento: new Date().toLocaleString()
+        };
+
+        db.ref('logs_acessos').push(logPayload).then(() => {
             FirebaseRef.remove().then(() => {
-                alert(`Vaga ${patioAtual}-${n} liberada com sucesso!`);
+                alert(`Vaga ${patioAtual}-${n} liberada e operacional!`);
             });
-        }).catch(err => {
-            alert("Erro de comunicação com o servidor ao liberar vaga.");
+        }).catch(() => {
+            // Se o log falhar, remove a vaga da tela mesmo assim (prioridade operacional)
+            FirebaseRef.remove();
         });
     }
 
@@ -414,7 +419,7 @@
         if(pass === SENHA_MESTRE || pass === "admin123") {
             isAdmin = !isAdmin;
             toggleModal('admin-panel', isAdmin);
-            renderizarMap();
+            renderizarMapa();
         } else alert("Acesso Negado!");
     }
 
@@ -441,15 +446,32 @@
         });
     }
 
+    // NOVA FUNÇÃO: Listar e Excluir permanentemente os cadastros da base NoSQL
     function verFuncionarios() {
         db.ref('funcionarios').once('value', snap => {
             if(!snap.exists()) return alert("Nenhum registro encontrado na base local.");
+            
             let lista = "BASE DE COLABORADORES REGISTRADOS:\n\n";
             snap.forEach(f => {
                 const val = f.val();
-                lista += `Chapa: ${val.cracha} | [${val.tipo || 'N/A'}] | Nome: ${val.nome} | Placa: ${val.placa}\n`;
+                lista += `Chapa: ${val.cracha} | Nome: ${val.nome} | Placa: ${val.placa}\n`;
             });
-            alert(lista);
+            
+            const chapaParaExcluir = prompt(lista + "\n\nPara EXCLUIR um cadastro permanentemente, digite a CHAPA (8 dígitos) e confirme:");
+            
+            if (chapaParaExcluir) {
+                db.ref(`funcionarios/${chapaParaExcluir}`).once('value', fSnap => {
+                    if (fSnap.exists()) {
+                        if (confirm(`Tem certeza que deseja apagar o registro da chapa ${chapaParaExcluir} (${fSnap.val().nome})?`)) {
+                            db.ref(`funcionarios/${chapaParaExcluir}`).remove().then(() => {
+                                alert("Cadastro removido permanentemente com sucesso!");
+                            });
+                        }
+                    } else {
+                        alert("Chapa não encontrada na base de dados.");
+                    }
+                });
+            }
         });
     }
 

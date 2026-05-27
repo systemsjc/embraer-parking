@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JC Systems Park-Embraer</title>
+    <title>Estacionamento Embraer</title>
     
+    <!-- CDNs das Bibliotecas Necessárias -->
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
@@ -40,20 +41,20 @@
 
         body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; transition: background 0.3s, color 0.3s; min-height: 100vh; display: flex; flex-direction: column; }
         
-        /* Header Modernizado com efeito Blur */
+        /* Header Otimizado - Foco na Embraer */
         .header { 
             display: flex; align-items: center; justify-content: space-between; 
-            background: var(--header-bg); padding: 12px 30px; 
+            background: var(--header-bg); padding: 12px 35px; 
             backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
             box-shadow: 0 1px 15px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100;
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
-        .logo-img { height: 38px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.05)); }
-        .app-title { font-size: 1.1rem; font-weight: 700; color: var(--primary); text-align: center; flex: 1; letter-spacing: 1px; }
+        .logo-jc { height: 24px; opacity: 0.6; object-fit: contain; } /* Mais discreta */
+        .logo-embraer { height: 50px; object-fit: contain; } /* Maior e em destaque */
+        .app-title { font-size: 1.3rem; font-weight: 800; color: var(--primary); text-align: center; flex: 1; letter-spacing: 1.5px; }
 
         .container { max-width: 1400px; margin: 25px auto; padding: 0 20px; flex: 1; width: -webkit-fill-available; }
 
-        /* Seleção de Estacionamento Estilo Pílula */
         .patio-selector { display: flex; justify-content: center; gap: 8px; margin-bottom: 25px; background: rgba(0,0,0,0.03); padding: 6px; border-radius: 30px; max-width: fit-content; margin-left: auto; margin-right: auto; }
         .btn-patio { 
             padding: 10px 24px; border: none; border-radius: 25px; font-weight: 600; font-size: 0.9rem;
@@ -61,31 +62,25 @@
         }
         .btn-patio.active { background: var(--card); color: var(--primary); box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
 
-        /* Dashboard em Cards Elegantes */
         .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
-        .stat-card { background: var(--card); padding: 16px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.02); text-align: center; font-weight: 600; font-size: 0.9rem; letter-spacing: 0.5px; }
+        .stat-card { background: var(--card); padding: 16px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.02); text-align: center; font-weight: 600; font-size: 0.9rem; }
         .count { font-size: 1.8rem; font-weight: 800; display: block; margin-top: 4px; }
 
-        /* Formulário Premium */
         .form-cadastro { 
             background: var(--card); padding: 25px; border-radius: 20px; 
             display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); 
             gap: 15px; margin-bottom: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.02);
-            border: 1px solid rgba(0,0,0,0.02);
         }
         input, select { 
             padding: 12px 16px; border: 1px solid var(--input-border); border-radius: 10px; 
             background: var(--card); color: var(--text); font-size: 14px; transition: all 0.2s;
-            box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
         }
         input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2); outline: none; }
 
-        /* Grid e Vagas */
         .grid-vagas { 
             display: grid; grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)); 
             gap: 10px; height: 45vh; overflow-y: auto; padding: 15px;
             background: var(--card); border-radius: 20px; border: 1px solid rgba(0,0,0,0.02);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.02);
         }
         .grid-vagas::-webkit-scrollbar { width: 6px; }
         .grid-vagas::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -96,7 +91,7 @@
             background-color: var(--disponivel); border: 2.5px solid transparent; transition: all 0.2s ease;
             box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2);
         }
-        .vaga:hover { transform: translateY(-2px); box-shadow: 0 5px 12px rgba(0,0,0,0.1); }
+        .vaga:hover { transform: translateY(-2px); }
         .vaga.ocupada { background-color: var(--ocupado) !important; border-color: transparent !important; box-shadow: 0 2px 6px rgba(239, 68, 68, 0.2); }
         .vaga.idoso { border-color: var(--idoso); color: var(--text); background: var(--card); }
         .vaga.pcd { border-color: var(--pcd); color: var(--text); background: var(--card); }
@@ -108,62 +103,42 @@
         .info-vaga { font-size: 0.5rem; margin-top: 4px; text-align: center; font-weight: 600; opacity: 0.8; text-transform: uppercase; }
         .vaga.ocupada .info-vaga { color: white; }
 
-        /* Floating Action Buttons */
         .fab-container { position: fixed; bottom: 80px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 101; }
-        .btn-fab { width: 48px; height: 48px; border-radius: 50%; border: none; background: var(--card); color: var(--text); cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 1.1rem; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; border: 1px solid rgba(255,255,255,0.1); }
-        .btn-fab:hover { transform: scale(1.05); }
+        .btn-fab { width: 48px; height: 48px; border-radius: 50%; border: none; background: var(--card); color: var(--text); cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 1.1rem; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.1); }
 
-        /* Modais Elegantes */
         .modal { 
             display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: var(--card); padding: 30px; border-radius: 24px; 
             box-shadow: 0 20px 50px rgba(0,0,0,0.3); z-index: 1000; width: 85%; max-width: 450px;
-            max-height: 80vh; overflow-y: auto; border: 1px solid rgba(255,255,255,0.05);
+            max-height: 80vh; overflow-y: auto;
         }
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 999; }
         
-        /* Termo LGPD */
         #lgpd-modal { display: none; z-index: 2000; max-width: 500px; }
         .lgpd-text { font-size: 0.85rem; height: 160px; overflow-y: auto; border: 1px solid var(--input-border); padding: 15px; margin-bottom: 20px; border-radius: 10px; color: var(--text-secondary); line-height: 1.5; }
 
-        /* Rodapé Profissional */
-        .footer {
-            background: var(--footer-bg);
-            color: var(--footer-text);
-            text-align: center;
-            padding: 20px 10px;
-            font-size: 0.85rem;
-            border-top: 1px solid rgba(255,255,255,0.05);
-            margin-top: auto;
-        }
-        .footer a {
-            color: #38bdf8;
-            text-decoration: none;
-            font-weight: 700;
-            transition: color 0.2s;
-        }
-        .footer a:hover {
-            color: #7dd3fc;
-            text-decoration: underline;
-        }
+        .footer { background: var(--footer-bg); color: var(--footer-text); text-align: center; padding: 20px 10px; font-size: 0.85rem; margin-top: auto; border-top: 1px solid rgba(255,255,255,0.05); }
+        .footer a { color: #38bdf8; text-decoration: none; font-weight: 700; }
     </style>
 </head>
 <body>
 
+<!-- Consentimento LGPD -->
 <div class="overlay" id="lgpd-overlay" style="display:block; z-index:1999;"></div>
 <div class="modal" id="lgpd-modal" style="display:block;">
     <h3 style="margin-top:0; color: var(--primary); font-weight: 800;">Termo de Privacidade</h3>
     <div class="lgpd-text">
-        Em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), o aplicativo <strong>JC Systems Park-Embraer</strong> solicita seu consentimento para coletar e tratar dados pessoais (Nome, Chapa, Setor e Placa do Veículo). 
+        Em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), o aplicativo de gerenciamento solicita seu consentimento para coletar e tratar dados pessoais (Nome, Chapa, Setor e Placa do Veículo). 
         Estes dados são coletados estritamente para finalidades de controle de acesso, segurança patrimonial, auditoria interna e monitoramento do tempo de permanência no pátio da instituição. Os dados serão armazenados em ambiente em nuvem seguro e não serão compartilhados com terceiros. Você pode solicitar a revogação do acesso ou exclusão dos dados através da administração de segurança patrimonial a qualquer momento.
     </div>
-    <button onclick="aceitarLGPD()" style="width:100%; padding:14px; background: #10b981; border:none; color:white; border-radius:12px; font-weight:700; cursor:pointer; font-size:0.95rem; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);">CONCORDO E ACESSAR SISTEMA</button>
+    <button onclick="aceitarLGPD()" style="width:100%; padding:14px; background: #10b981; border:none; color:white; border-radius:12px; font-weight:700; cursor:pointer; font-size:0.95rem;">CONCORDO E ACESSAR SISTEMA</button>
 </div>
 
+<!-- Cabeçalho Atualizado -->
 <div class="header">
-    <img src="logo_jc.png" alt="JC Systems" class="logo-img">
-    <div class="app-title">JC SYSTEMS PARK-EMBRAER</div>
-    <img src="logo_embraer.png" alt="Embraer" class="logo-img">
+    <img src="logo_jc.png" alt="JC" class="logo-jc">
+    <div class="app-title">ESTACIONAMENTO EMBRAER</div>
+    <img src="logo_embraer.png" alt="Embraer" class="logo-embraer">
 </div>
 
 <div class="container">
@@ -196,6 +171,7 @@
 
 <div class="overlay" id="overlay" onclick="toggleModal(null, false)"></div>
 
+<!-- Painel do Administrador -->
 <div class="modal" id="admin-panel">
     <h3 style="margin-top:0; color: var(--primary); font-weight:800;">Painel Administrativo</h3>
     <div style="display:flex; justify-content: space-between; margin-bottom:20px; gap: 12px;">
@@ -204,17 +180,17 @@
     </div>
     <hr style="border: 0; border-top: 1px solid var(--input-border); margin: 15px 0;">
     <h4 style="margin:10px 0; font-weight:700;">Parametrização do Pátio Ativo</h4>
-    <label style="font-size:0.85rem; font-weight:600;">Vagas Totais:</label><input type="number" id="set-total" style="width:-webkit-fill-available; margin-bottom:12px; margin-top:4px;">
-    <label style="font-size:0.85rem; font-weight:600;">Qtd. Idosos:</label><input type="number" id="set-idoso" style="width:-webkit-fill-available; margin-bottom:12px; margin-top:4px;">
-    <label style="font-size:0.85rem; font-weight:600;">Qtd. PCD:</label><input type="number" id="set-pcd" style="width:-webkit-fill-available; margin-bottom:12px; margin-top:4px;">
-    <label style="font-size:0.85rem; font-weight:600;">Qtd. Gestante:</label><input type="number" id="set-gestante" style="width:-webkit-fill-available; margin-bottom:12px; margin-top:4px;">
-    <label style="font-size:0.85rem; font-weight:600;">Qtd. Privativo:</label><input type="number" id="set-privativo" style="width:-webkit-fill-available; margin-bottom:12px; margin-top:4px;">
+    <label>Vagas Totais:</label><input type="number" id="set-total" style="width:-webkit-fill-available; margin-bottom:12px; margin-top:4px;">
+    <label>Qtd. Idosos:</label><input type="number" id="set-idoso" style="width:-webkit-fill-available; margin-bottom:12px; margin-top:4px;">
+    <label>Qtd. PCD:</label><input type="number" id="set-pcd" style="width:-webkit-fill-available; margin-bottom:12px; margin-top:4px;">
+    <label>Qtd. Gestante:</label><input type="number" id="set-gestante" style="width:-webkit-fill-available; margin-bottom:12px; margin-top:4px;">
+    <label>Qtd. Privativo:</label><input type="number" id="set-privativo" style="width:-webkit-fill-available; margin-bottom:12px; margin-top:4px;">
     
     <h4 style="margin:15px 0 5px 0; font-weight:700;">Tempos Máximos (Minutos)</h4>
-    <label style="font-size:0.85rem; font-weight:600;">Colaboradores:</label><input type="number" id="time-funcionario" style="width:-webkit-fill-available; margin-bottom:12px; margin-top:4px;">
-    <label style="font-size:0.85rem; font-weight:600;">Visitantes:</label><input type="number" id="time-visitante" style="width:-webkit-fill-available; margin-bottom:20px; margin-top:4px;">
+    <label>Colaboradores:</label><input type="number" id="time-funcionario" style="width:-webkit-fill-available; margin-bottom:12px; margin-top:4px;">
+    <label>Visitantes:</label><input type="number" id="time-visitante" style="width:-webkit-fill-available; margin-bottom:20px; margin-top:4px;">
 
-    <button onclick="salvarConfig()" style="width:100%; padding:14px; background: var(--primary); border:none; color:white; border-radius:12px; font-weight:700; cursor:pointer; font-size:0.95rem;">SALVAR CONFIGURAÇÕES PÁTIO</button>
+    <button onclick="salvarConfig()" style="width:100%; padding:14px; background: var(--primary); border:none; color:white; border-radius:12px; font-weight:700; cursor:pointer;">SALVAR CONFIGURAÇÕES PÁTIO</button>
 </div>
 
 <div class="fab-container">
@@ -351,9 +327,9 @@
 
     function gerenciarVaga(n) {
         const ref = db.ref(`vagas/${patioAtual}/${n}`);
-        ref.once('value', snap => {
-            if (snap.exists()) {
-                const dadosVaga = snap.val();
+        ref.once('value', snapshot => {
+            if (snapshot.exists()) {
+                const dadosVaga = snapshot.val();
                 
                 if (isAdmin) {
                     const confirmacaoAdmin = confirm(
@@ -371,10 +347,12 @@
                     }
                 } else {
                     const senhaDigitada = prompt(`Estacionamento ${patioAtual} - Vaga ${n} Ocupada.\nDigite sua Senha de Saída para liberar:`);
-                    if (senhaDigitada === dadosVaga.senha || senhaDigitada === SENHA_MESTRE || senhaDigitada === "admin123") {
-                        efetuarSaidaLog(dadosVaga, n, ref);
-                    } else if (senhaDigitada !== null) {
-                        alert("Senha incorreta!");
+                    if (senhaDigitada !== null) {
+                        if (senhaDigitada === dadosVaga.senha || senhaDigitada === SENHA_MESTRE || senhaDigitada === "admin123") {
+                            efetuarSaidaLog(dadosVaga, n, ref);
+                        } else {
+                            alert("Senha incorreta!");
+                        }
                     }
                 }
             } else {
@@ -407,9 +385,14 @@
     function efectuarSaidaLog(dadosVaga, n, FirebaseRef) {
         db.ref('logs_acessos').push({
             ...dadosVaga, patio: patioAtual, vaga: n, evento: 'SAIDA', timestamp_evento: new Date().toLocaleString()
+        }).then(() => {
+            FirebaseRef.remove().then(() => {
+                alert("Vaga liberada com sucesso!");
+                renderizarMapa();
+            });
+        }).catch(err => {
+            alert("Erro ao processar liberação no servidor.");
         });
-        FirebaseRef.remove();
-        alert("Vaga liberada!");
     }
 
     function acessoAdmin() {
@@ -440,7 +423,7 @@
         db.ref(`config/${patioAtual}`).set(novaConfig).then(() => {
             toggleModal(null, false);
             isAdmin = false;
-            alert("Parâmetros do pátio atualizados com sucesso!");
+            alert("Parâmetros do pátio personalizados com sucesso!");
         });
     }
 

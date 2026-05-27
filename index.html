@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Estacionamento Embraer</title>
+    <title>JC Systems Park-Embraer</title>
     
-    <!-- CDNs das Bibliotecas Necessárias -->
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
@@ -41,17 +40,15 @@
 
         body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; transition: background 0.3s, color 0.3s; min-height: 100vh; display: flex; flex-direction: column; }
         
-        /* Header Otimizado - Foco na Embraer */
         .header { 
             display: flex; align-items: center; justify-content: space-between; 
-            background: var(--header-bg); padding: 12px 35px; 
+            background: var(--header-bg); padding: 12px 30px; 
             backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
             box-shadow: 0 1px 15px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100;
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
-        .logo-jc { height: 24px; opacity: 0.6; object-fit: contain; } /* Mais discreta */
-        .logo-embraer { height: 50px; object-fit: contain; } /* Maior e em destaque */
-        .app-title { font-size: 1.3rem; font-weight: 800; color: var(--primary); text-align: center; flex: 1; letter-spacing: 1.5px; }
+        .logo-img { height: 38px; object-fit: contain; }
+        .app-title { font-size: 1.1rem; font-weight: 700; color: var(--primary); text-align: center; flex: 1; letter-spacing: 1px; }
 
         .container { max-width: 1400px; margin: 25px auto; padding: 0 20px; flex: 1; width: -webkit-fill-available; }
 
@@ -123,22 +120,20 @@
 </head>
 <body>
 
-<!-- Consentimento LGPD -->
 <div class="overlay" id="lgpd-overlay" style="display:block; z-index:1999;"></div>
 <div class="modal" id="lgpd-modal" style="display:block;">
     <h3 style="margin-top:0; color: var(--primary); font-weight: 800;">Termo de Privacidade</h3>
     <div class="lgpd-text">
-        Em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), o aplicativo de gerenciamento solicita seu consentimento para coletar e tratar dados pessoais (Nome, Chapa, Setor e Placa do Veículo). 
+        Em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), o aplicativo <strong>JC Systems Park-Embraer</strong> solicita seu consentimento para coletar e tratar dados pessoais (Nome, Chapa, Setor e Placa do Veículo). 
         Estes dados são coletados estritamente para finalidades de controle de acesso, segurança patrimonial, auditoria interna e monitoramento do tempo de permanência no pátio da instituição. Os dados serão armazenados em ambiente em nuvem seguro e não serão compartilhados com terceiros. Você pode solicitar a revogação do acesso ou exclusão dos dados através da administração de segurança patrimonial a qualquer momento.
     </div>
     <button onclick="aceitarLGPD()" style="width:100%; padding:14px; background: #10b981; border:none; color:white; border-radius:12px; font-weight:700; cursor:pointer; font-size:0.95rem;">CONCORDO E ACESSAR SISTEMA</button>
 </div>
 
-<!-- Cabeçalho Atualizado -->
 <div class="header">
-    <img src="logo_jc.png" alt="JC" class="logo-jc">
-    <div class="app-title">ESTACIONAMENTO EMBRAER</div>
-    <img src="logo_embraer.png" alt="Embraer" class="logo-embraer">
+    <img src="logo_jc.png" alt="JC Systems" class="logo-img">
+    <div class="app-title">JC SYSTEMS PARK-EMBRAER</div>
+    <img src="logo_embraer.png" alt="Embraer" class="logo-img">
 </div>
 
 <div class="container">
@@ -171,7 +166,6 @@
 
 <div class="overlay" id="overlay" onclick="toggleModal(null, false)"></div>
 
-<!-- Painel do Administrador -->
 <div class="modal" id="admin-panel">
     <h3 style="margin-top:0; color: var(--primary); font-weight:800;">Painel Administrativo</h3>
     <div style="display:flex; justify-content: space-between; margin-bottom:20px; gap: 12px;">
@@ -325,11 +319,12 @@
 
     setInterval(verificarHorariosExcedidos, 30000);
 
+    // CORREÇÃO CRUCIAL AQUI: Extração estrita via .val() para o fluxo assíncrono de exclusão
     function gerenciarVaga(n) {
         const ref = db.ref(`vagas/${patioAtual}/${n}`);
         ref.once('value', snapshot => {
             if (snapshot.exists()) {
-                const dadosVaga = snapshot.val();
+                const dadosVaga = snapshot.val(); // Captura explícita da árvore NoSQL
                 
                 if (isAdmin) {
                     const confirmacaoAdmin = confirm(
@@ -388,7 +383,7 @@
         }).then(() => {
             FirebaseRef.remove().then(() => {
                 alert("Vaga liberada com sucesso!");
-                renderizarMapa();
+                renderizarMapa(); // Força remontagem local preventiva
             });
         }).catch(err => {
             alert("Erro ao processar liberação no servidor.");
@@ -423,7 +418,7 @@
         db.ref(`config/${patioAtual}`).set(novaConfig).then(() => {
             toggleModal(null, false);
             isAdmin = false;
-            alert("Parâmetros do pátio personalizados com sucesso!");
+            alert("Parâmetros do pátio atualizados com sucesso!");
         });
     }
 

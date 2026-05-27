@@ -155,7 +155,6 @@
     function fecharLGPD() { document.getElementById('lgpd-modal').style.display = 'none'; document.getElementById('lgpd-overlay').style.display = 'none'; }
 
     function mudarPatio(letra) {
-        db.ref(`vagas/${patioAtual}`).off();
         patioAtual = letra;
         document.querySelectorAll('.btn-patio').forEach(b => b.classList.remove('active'));
         document.getElementById(`btn-${letra}`).classList.add('active');
@@ -163,6 +162,7 @@
     }
 
     function carregarConfigPatio() {
+        // Escuta única para as configurações do pátio ativo
         db.ref(`config/${patioAtual}`).on('value', snap => {
             if(snap.exists()) config = snap.val();
             atualizarAdminInputs();
@@ -206,10 +206,22 @@
     }
 
     function sincronizarVagas() {
-        db.ref(`vagas/${patioAtual}`).off();
-        db.ref(`vagas/${patioAtual}`).on('value', snap => {
-            cacheVagasFirebase = snap.val() || {};
-            let countOcupadas = Object.keys(cacheVagasFirebase).length;
+        // CORREÇÃO: Escuta global linear para evitar sobreposição NoSQL
+        db.ref('vagas').off();
+        db.ref('vagas').on('value', snap => {
+            const todasAsVagas = snap.val() || {};
+            cacheVagasFirebase = {};
+            let countOcupadas = 0;
+
+            // Filtra as vagas pertencentes apenas ao pátio ativo usando a nova chave unificada (Patio_Numero)
+            for(let chave em todasAsVagas) {
+                if(chave.startsWith(patioAtual + "_")) {
+                    const numeroVaga = chave.split('_')[1];
+                    cacheVagasFirebase[numeroVaga] = todasAsVagas[chave];
+                    countOcupadas++;
+                }
+            }
+
             document.getElementById('livres-count').innerText = config.total - countOcupadas;
             document.getElementById('ocupadas-count').innerText = countOcupadas;
 
@@ -234,7 +246,7 @@
 
     function verificarHorariosExcedidos() {
         const agora = new Date().getTime();
-        for (let id in cacheVagasFirebase) {
+        for (let id em cacheVagasFirebase) {
             const el = document.getElementById(`v-${id}`);
             const lbl = document.getElementById(`lbl-${id}`);
             if (el) {
@@ -249,10 +261,9 @@
         }
     }
 
-    setInterval(verificarHorariosExcedidos, 30000);
-
     function gerenciarVaga(n) {
-        const refVaga = db.ref(`vagas/${patioAtual}/${n}`);
+        const chaveUnificada = `${patioAtual}_${n}`;
+        const refVaga = db.ref(`vagas/${chaveUnificada}`);
         const vagaExisteNoCache = cacheVagasFirebase.hasOwnProperty(n);
 
         if (vagaExisteNoCache) {
@@ -260,14 +271,12 @@
             
             if (isAdmin) {
                 if (confirm(`📌 INFORMAÇÕES DA VAGA ${patioAtual}-${n}\n\n• Nome: ${dadosVaga.nome || "N/A"}\n• Chapa: ${dadosVaga.cracha || "N/A"}\n\nDeseja FORÇAR A LIBERAÇÃO desta vaga?`)) {
-                    limparVagaNaTela(n);
                     efetuarSaidaLog(dadosVaga, n, refVaga);
                 }
             } else {
                 const senhaDigitada = prompt(`Estacionamento ${patioAtual} - Vaga ${n} Ocupada.\nDigite sua Senha de Saída para liberar:`);
                 if (senhaDigitada !== null) {
                     if (!dadosVaga.senha || senhaDigitada === dadosVaga.senha || senhaDigitada === SENHA_MESTRE || senhaDigitada === "admin123") {
-                        limparVagaNaTela(n);
                         efetuarSaidaLog(dadosVaga, n, refVaga);
                     } else {
                         alert("Senha de saída incorreta!");
@@ -284,36 +293,29 @@
             if (!nome || cracha.length !== 8 || !placa || !senha) return alert("Por favor, preencha todos os campos obrigatórios.");
 
             const payload = { nome, cracha, placa, setor: document.getElementById('setor').value, tipo, senha, timestamp: new Date().getTime(), data_entrada: new Date().toLocaleString() };
+            
             refVaga.set(payload).then(() => {
                 db.ref(`funcionarios/${cracha}`).set({ nome, cracha, placa, setor: document.getElementById('setor').value, tipo });
                 db.ref('logs_acessos').push({ ...payload, patio: patioAtual, vaga: n, evento: 'ENTRADA', timestamp_evento: new Date().toLocaleString() });
                 document.getElementById('senha-vaga').value = "";
-            });
+            }).catch(err => alert("Erro ao salvar vaga no Firebase. Verifique sua conexão."));
         }
     }
 
-    function limparVagaNaTela(n) {
-        const el = document.getElementById(`v-${n}`);
-        const lbl = document.getElementById(`lbl-${n}`);
-        if(el) el.classList.remove('ocupada', 'excedido');
-        if(lbl) lbl.innerText = "LIVRE";
-        delete cacheVagasFirebase[n];
-    }
-
     function efectuarSaidaLog(dadosVaga, n, FirebaseRef) {
-        FirebaseRef.remove(); // Comando nativo direto e limpo
-        db.ref('logs_acessos').push({
-            nome: dadosVaga.nome || "N/A", cracha: dadosVaga.cracha || "N/A", patio: patioAtual, vaga: n, evento: 'SAIDA', timestamp_evento: new Date().toLocaleString()
+        // CORREÇÃO: Força o set(null) com tratamento de erro explícito para garantir a exclusão real na nuvem
+        FirebaseRef.set(null).then(() => {
+            db.ref('logs_acessos').push({
+                nome: dadosVaga.nome || "N/A", cracha: dadosVaga.cracha || "N/A", patio: patioAtual, vaga: n, evento: 'SAIDA', timestamp_evento: new Date().toLocaleString()
+            });
+        }).catch(err => {
+            alert("O Firebase recusou a exclusão. Verifique as regras de escrita do seu banco.");
         });
     }
 
     function acessoAdmin() {
         const pass = prompt("Autenticação de Segurança:");
-        if(pass === SENHA_MESTRE || pass === "admin123") { 
-            isAdmin = !isAdmin; 
-            toggleModal('admin-panel', isAdmin); 
-            renderizarMapa(); // CORRIGIDO: Nome da função ajustado
-        }
+        if(pass === SENHA_MESTRE || pass === "admin123") { isAdmin = !isAdmin; toggleModal('admin-panel', isAdmin); renderizarMapa(); }
         else alert("Acesso Negado!");
     }
 

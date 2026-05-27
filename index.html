@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JC Systems Park-Embraer</title>
+    <title>Estacionamento Embraer</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
@@ -42,13 +42,14 @@
         
         .header { 
             display: flex; align-items: center; justify-content: space-between; 
-            background: var(--header-bg); padding: 12px 30px; 
+            background: var(--header-bg); padding: 12px 35px; 
             backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
             box-shadow: 0 1px 15px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100;
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
-        .logo-img { height: 38px; object-fit: contain; }
-        .app-title { font-size: 1.1rem; font-weight: 700; color: var(--primary); text-align: center; flex: 1; letter-spacing: 1px; }
+        .logo-jc { height: 24px; opacity: 0.6; object-fit: contain; }
+        .logo-embraer { height: 50px; object-fit: contain; }
+        .app-title { font-size: 1.3rem; font-weight: 800; color: var(--primary); text-align: center; flex: 1; letter-spacing: 1.5px; }
 
         .container { max-width: 1400px; margin: 25px auto; padding: 0 20px; flex: 1; width: -webkit-fill-available; }
 
@@ -124,16 +125,16 @@
 <div class="modal" id="lgpd-modal" style="display:block;">
     <h3 style="margin-top:0; color: var(--primary); font-weight: 800;">Termo de Privacidade</h3>
     <div class="lgpd-text">
-        Em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), o aplicativo <strong>JC Systems Park-Embraer</strong> solicita seu consentimento para coletar e tratar dados pessoais (Nome, Chapa, Setor e Placa do Veículo). 
+        Em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), o aplicativo de gerenciamento solicita seu consentimento para coletar e tratar dados pessoais (Nome, Chapa, Setor e Placa do Veículo). 
         Estes dados são coletados estritamente para finalidades de controle de acesso, segurança patrimonial, auditoria interna e monitoramento do tempo de permanência no pátio da instituição. Os dados serão armazenados em ambiente em nuvem seguro e não serão compartilhados com terceiros. Você pode solicitar a revogação do acesso ou exclusão dos dados através da administração de segurança patrimonial a qualquer momento.
     </div>
     <button onclick="aceitarLGPD()" style="width:100%; padding:14px; background: #10b981; border:none; color:white; border-radius:12px; font-weight:700; cursor:pointer; font-size:0.95rem;">CONCORDO E ACESSAR SISTEMA</button>
 </div>
 
 <div class="header">
-    <img src="logo_jc.png" alt="JC Systems" class="logo-img">
-    <div class="app-title">JC SYSTEMS PARK-EMBRAER</div>
-    <img src="logo_embraer.png" alt="Embraer" class="logo-img">
+    <img src="logo_jc.png" alt="JC" class="logo-jc">
+    <div class="app-title">ESTACIONAMENTO EMBRAER</div>
+    <img src="logo_embraer.png" alt="Embraer" class="logo-embraer">
 </div>
 
 <div class="container">
@@ -215,7 +216,9 @@
     let patioAtual = 'A';
     let config = { total: 2500, idoso: 100, pcd: 100, gestante: 100, privativo: 100, tempoFunc: 480, tempoVis: 120 };
     let isAdmin = false;
-    let dadosLocaisVagas = {};
+    
+    // Lista isolada na RAM para proteger as operações de clique contra repetições do snapshot
+    let cacheVagasFirebase = {}; 
 
     if(localStorage.getItem('park_lgpd_accepted') === 'true') {
         fecharLGPD();
@@ -286,28 +289,44 @@
 
     function sincronizarVagas() {
         db.ref(`vagas/${patioAtual}`).on('value', snap => {
-            dadosLocaisVagas = snap.val() || {};
-            let countOcupadas = Object.keys(dadosLocaisVagas).length;
+            cacheVagasFirebase = snap.val() || {};
+            let countOcupadas = Object.keys(cacheVagasFirebase).length;
             
             document.getElementById('livres-count').innerText = config.total - countOcupadas;
             document.getElementById('ocupadas-count').innerText = countOcupadas;
 
-            document.querySelectorAll('.vaga.ocupada').forEach(el => el.classList.remove('ocupada', 'excedido'));
+            // Limpeza geral estruturada de classes
+            document.querySelectorAll('.grid-vagas .vaga').forEach(el => {
+                el.classList.remove('ocupada', 'excedido');
+                const idVaga = el.id.split('-')[1];
+                const lbl = document.getElementById(`lbl-${idVaga}`);
+                
+                // Restaura labels padrões de vagas vazias
+                if (lbl) {
+                    let txtPadrao = "";
+                    if (idVaga <= parseInt(config.idoso)) txtPadrao = "Idoso";
+                    else if (idVaga <= (parseInt(config.idoso) + parseInt(config.pcd))) txtPadrao = "PCD";
+                    else if (idVaga <= (parseInt(config.idoso) + parseInt(config.pcd) + parseInt(config.gestante))) txtPadrao = "Grávida";
+                    else if (idVaga <= (parseInt(config.idoso) + parseInt(config.pcd) + parseInt(config.gestante) + parseInt(config.privativo))) txtPadrao = "Privat.";
+                    lbl.innerText = txtPadrao;
+                }
+            });
+
             verificarHorariosExcedidos();
         });
     }
 
     function verificarHorariosExcedidos() {
         const agora = new Date().getTime();
-        for (let id in dadosLocaisVagas) {
+        for (let id in cacheVagasFirebase) {
             const el = document.getElementById(`v-${id}`);
             const lbl = document.getElementById(`lbl-${id}`);
             if (el) {
                 el.classList.add('ocupada');
-                lbl.innerText = isAdmin ? dadosLocaisVagas[id].cracha : "OCUPADA";
+                lbl.innerText = isAdmin ? cacheVagasFirebase[id].cracha : "OCUPADA";
 
-                const tempoDecorridoMinutos = Math.floor((agora - dadosLocaisVagas[id].timestamp) / 60000);
-                const limitePermitido = dadosLocaisVagas[id].tipo === 'Visitantes' ? config.tempoVis : config.tempoFunc;
+                const tempoDecorridoMinutos = Math.floor((agora - cacheVagasFirebase[id].timestamp) / 60000);
+                const limitePermitido = cacheVagasFirebase[id].tipo === 'Visitantes' ? config.tempoVis : config.tempoFunc;
 
                 if (tempoDecorridoMinutos >= limitePermitido) {
                     el.classList.add('excedido');
@@ -319,62 +338,63 @@
 
     setInterval(verificarHorariosExcedidos, 30000);
 
-    // CORREÇÃO CRUCIAL AQUI: Extração estrita via .val() para o fluxo assíncrono de exclusão
+    // Nova Lógica de Gerenciamento: Isolada e protegida contra concorrência assíncrona
     function gerenciarVaga(n) {
-        const ref = db.ref(`vagas/${patioAtual}/${n}`);
-        ref.once('value', snapshot => {
-            if (snapshot.exists()) {
-                const dadosVaga = snapshot.val(); // Captura explícita da árvore NoSQL
-                
-                if (isAdmin) {
-                    const confirmacaoAdmin = confirm(
-                        `📌 INFORMAÇÕES DA VAGA ${patioAtual}-${n}\n\n` +
-                        `• Nome: ${dadosVaga.nome}\n` +
-                        `• Chapa: ${dadosVaga.cracha}\n` +
-                        `• Placa: ${dadosVaga.placa}\n` +
-                        `• Setor: ${dadosVaga.setor}\n` +
-                        `• Vínculo: ${dadosVaga.tipo}\n` +
-                        `• Entrada: ${dadosVaga.data_entrada}\n\n` +
-                        `Deseja liberar remotamente esta vaga?`
-                    );
-                    if (confirmacaoAdmin) {
-                        efetuarSaidaLog(dadosVaga, n, ref);
-                    }
-                } else {
-                    const senhaDigitada = prompt(`Estacionamento ${patioAtual} - Vaga ${n} Ocupada.\nDigite sua Senha de Saída para liberar:`);
-                    if (senhaDigitada !== null) {
-                        if (senhaDigitada === dadosVaga.senha || senhaDigitada === SENHA_MESTRE || senhaDigitada === "admin123") {
-                            efetuarSaidaLog(dadosVaga, n, ref);
-                        } else {
-                            alert("Senha incorreta!");
-                        }
-                    }
+        const refVaga = db.ref(`vagas/${patioAtual}/${n}`);
+        const vagaExisteNoCache = cacheVagasFirebase.hasOwnProperty(n);
+
+        if (vagaExisteNoCache) {
+            const dadosVaga = cacheVagasFirebase[n];
+            
+            if (isAdmin) {
+                const confirmacaoAdmin = confirm(
+                    `📌 INFORMAÇÕES DA VAGA ${patioAtual}-${n}\n\n` +
+                    `• Nome: ${dadosVaga.nome}\n` +
+                    `• Chapa: ${dadosVaga.cracha}\n` +
+                    `• Placa: ${dadosVaga.placa}\n` +
+                    `• Setor: ${dadosVaga.setor}\n` +
+                    `• Vínculo: ${dadosVaga.tipo}\n` +
+                    `• Entrada: ${dadosVaga.data_entrada}\n\n` +
+                    `Deseja liberar remotamente esta vaga?`
+                );
+                if (confirmacaoAdmin) {
+                    efetuarSaidaLog(dadosVaga, n, refVaga);
                 }
             } else {
-                const nome = document.getElementById('nome').value;
-                const cracha = document.getElementById('cracha').value;
-                const placa = document.getElementById('placa').value.toUpperCase();
-                const senha = document.getElementById('senha-vaga').value;
-                const tipo = document.getElementById('tipo-usuario').value;
-
-                if (!nome || cracha.length !== 8 || !placa || !senha) {
-                    alert("Por favor, preencha todos os campos obrigatórios. Certifique-se de que a chapa possui 8 dígitos.");
-                    return;
+                const senhaDigitada = prompt(`Estacionamento ${patioAtual} - Vaga ${n} Ocupada.\nDigite sua Senha de Saída para liberar:`);
+                if (senhaDigitada !== null && senhaDigitada !== "") {
+                    if (senhaDigitada === dadosVaga.senha || senhaDigitada === SENHA_MESTRE || senhaDigitada === "admin123") {
+                        efetuarSaidaLog(dadosVaga, n, refVaga);
+                    } else {
+                        alert("Senha de saída incorreta!");
+                    }
                 }
+            }
+        } else {
+            // Fluxo de Ocupação/Check-in
+            const nome = document.getElementById('nome').value;
+            const cracha = document.getElementById('cracha').value;
+            const placa = document.getElementById('placa').value.toUpperCase();
+            const senha = document.getElementById('senha-vaga').value;
+            const tipo = document.getElementById('tipo-usuario').value;
 
-                const payload = {
-                    nome, cracha, placa, setor: document.getElementById('setor').value,
-                    tipo, senha, timestamp: new Date().getTime(), data_entrada: new Date().toLocaleString()
-                };
+            if (!nome || cracha.length !== 8 || !placa || !senha) {
+                alert("Por favor, preencha todos os campos obrigatórios. Certifique-se de que a chapa possui 8 dígitos.");
+                return;
+            }
 
-                ref.set(payload);
+            const payload = {
+                nome, cracha, placa, setor: document.getElementById('setor').value,
+                tipo, senha, timestamp: new Date().getTime(), data_entrada: new Date().toLocaleString()
+            };
+
+            refVaga.set(payload).then(() => {
                 db.ref(`funcionarios/${cracha}`).set({ nome, cracha, placa, setor: document.getElementById('setor').value, tipo });
                 db.ref('logs_acessos').push({ ...payload, patio: patioAtual, vaga: n, evento: 'ENTRADA', timestamp_evento: new Date().toLocaleString() });
-
                 document.getElementById('senha-vaga').value = "";
                 alert(`Vaga ${patioAtual}-${n} reservada com sucesso!`);
-            }
-        });
+            });
+        }
     }
 
     function efectuarSaidaLog(dadosVaga, n, FirebaseRef) {
@@ -382,11 +402,10 @@
             ...dadosVaga, patio: patioAtual, vaga: n, evento: 'SAIDA', timestamp_evento: new Date().toLocaleString()
         }).then(() => {
             FirebaseRef.remove().then(() => {
-                alert("Vaga liberada com sucesso!");
-                renderizarMapa(); // Força remontagem local preventiva
+                alert(`Vaga ${patioAtual}-${n} liberada com sucesso!`);
             });
         }).catch(err => {
-            alert("Erro ao processar liberação no servidor.");
+            alert("Erro de comunicação com o servidor ao liberar vaga.");
         });
     }
 
@@ -395,7 +414,7 @@
         if(pass === SENHA_MESTRE || pass === "admin123") {
             isAdmin = !isAdmin;
             toggleModal('admin-panel', isAdmin);
-            renderizarMapa();
+            renderizarMap();
         } else alert("Acesso Negado!");
     }
 
@@ -458,7 +477,6 @@
         document.body.setAttribute('data-theme', theme);
     }
 
-    // Inicialização da aplicação
     carregarConfigPatio();
 </script>
 </body>

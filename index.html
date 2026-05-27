@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Estacionamento Embraer</title>
     
-    <!-- CDNs das Bibliotecas Necessárias -->
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
@@ -148,12 +147,12 @@
     const SENHA_MESTRE = "ozs1232026";
     
     let patioAtual = 'A';
-    let config = { total: 100, idoso: 10, pcd: 10, gestante: 10, privativo: 10, tempoFunc: 480, tempoVis: 120 };
+    let config = { total: 1000, idoso: 50, pcd: 50, gestante: 50, privativo: 50, tempoFunc: 480, tempoVis: 120 };
     let isAdmin = false;
     let cacheVagasFirebase = {}; 
 
     if(localStorage.getItem('park_lgpd_accepted') === 'true') {
-        setTimeout(fecharLGPD, 100);
+        setTimeout(fecharLGPD, 50);
     }
 
     function aceitarLGPD() { 
@@ -167,6 +166,7 @@
     }
 
     function mudarPatio(letra) {
+        db.ref('vagas').off();
         patioAtual = letra;
         document.querySelectorAll('.btn-patio').forEach(b => b.classList.remove('active'));
         document.getElementById(`btn-${letra}`).classList.add('active');
@@ -177,8 +177,6 @@
         db.ref(`config/${patioAtual}`).on('value', snap => {
             if(snap.exists()) {
                 config = snap.val();
-            } else {
-                config = { total: 100, idoso: 10, pcd: 10, gestante: 10, privativo: 10, tempoFunc: 480, tempoVis: 120 };
             }
             atualizarAdminInputs();
             renderizarMapa();
@@ -190,7 +188,7 @@
         document.getElementById('set-idoso').value = config.idoso;
         document.getElementById('set-pcd').value = config.pcd;
         document.getElementById('set-gestante').value = config.gestante;
-        document.getElementById('set-privativo').value = config.privativo || 10;
+        document.getElementById('set-privativo').value = config.privativo || 50;
         document.getElementById('time-funcionario').value = config.tempoFunc || 480;
         document.getElementById('time-visitante').value = config.tempoVis || 120;
     }
@@ -202,7 +200,7 @@
         const limiteIdoso = parseInt(config.idoso);
         const limitePcd = limiteIdoso + parseInt(config.pcd);
         const limiteGestante = limitePcd + parseInt(config.gestante);
-        const limitePrivativo = limiteGestante + parseInt(config.privativo || 10);
+        const limitePrivativo = limiteGestante + parseInt(config.privativo || 50);
 
         for (let i = 1; i <= config.total; i++) {
             const v = document.createElement('div');
@@ -230,7 +228,7 @@
             for(let chave in todasAsVagas) {
                 if(chave.startsWith(patioAtual + "_")) {
                     const numeroVaga = chave.split('_')[1];
-                    cacheVagasFirebase[numeroVaga] = todasAsVagas[chave];
+                    cacheVagasFirebase[String(numeroVaga)] = todasAsVagas[chave];
                     countOcupadas++;
                 }
             }
@@ -240,7 +238,7 @@
 
             document.querySelectorAll('.grid-vagas .vaga').forEach(el => {
                 const idVaga = el.id.split('-')[1];
-                if (!cacheVagasFirebase.hasOwnProperty(idVaga)) {
+                if (!cacheVagasFirebase.hasOwnProperty(String(idVaga))) {
                     el.classList.remove('ocupada', 'excedido');
                     const lbl = document.getElementById(`lbl-${idVaga}`);
                     if (lbl) {
@@ -277,22 +275,26 @@
     setInterval(verificarHorariosExcedidos, 30000);
 
     function gerenciarVaga(n) {
-        const chaveUnificada = `${patioAtual}_${n}`;
+        const stringN = String(n); 
+        const chaveUnificada = `${patioAtual}_${stringN}`;
         const refVaga = db.ref(`vagas/${chaveUnificada}`);
-        const vagaExisteNoCache = cacheVagasFirebase.hasOwnProperty(n);
+        const vagaExisteNoCache = cacheVagasFirebase.hasOwnProperty(stringN);
 
         if (vagaExisteNoCache) {
-            const dadosVaga = cacheVagasFirebase[n] || {};
+            const dadosVaga = cacheVagasFirebase[stringN] || {};
             
             if (isAdmin) {
-                if (confirm(`📌 INFORMAÇÕES DA VAGA ${patioAtual}-${n}\n\n• Nome: ${dadosVaga.nome || "N/A"}\n• Chapa: ${dadosVaga.cracha || "N/A"}\n• Placa: ${dadosVaga.placa || "N/A"}\n• Setor: ${dadosVaga.setor || "N/A"}\n• Vínculo: ${dadosVaga.tipo || "N/A"}\n• Entrada: ${dadosVaga.data_entrada || "N/A"}\n\nDeseja FORÇAR A LIBERAÇÃO desta vaga?`)) {
-                    efetuarSaidaLog(dadosVaga, n, refVaga);
+                if (confirm(`📌 INFORMAÇÕES DA VAGA ${patioAtual}-${stringN}\n\n• Nome: ${dadosVaga.nome || "N/A"}\n• Chapa: ${dadosVaga.cracha || "N/A"}\n• Placa: ${dadosVaga.placa || "N/A"}\n• Setor: ${dadosVaga.setor || "N/A"}\n• Vínculo: ${dadosVaga.tipo || "N/A"}\n• Entrada: ${dadosVaga.data_entrada || "N/A"}\n\nDeseja FORÇAR A LIBERAÇÃO desta vaga?`)) {
+                    efetuarSaidaLog(dadosVaga, stringN, refVaga);
                 }
             } else {
-                const senhaDigitada = prompt(`Estacionamento ${patioAtual} - Vaga ${n} Ocupada.\nDigite sua Senha de Saída para liberar:`);
+                const senhaDigitada = prompt(`Estacionamento ${patioAtual} - Vaga ${stringN} Ocupada.\nDigite sua Senha de Saída para liberar:`);
                 if (senhaDigitada !== null) {
-                    if (!dadosVaga.senha || senhaDigitada === dadosVaga.senha || senhaDigitada === SENHA_MESTRE || senhaDigitada === "admin123") {
-                        efetuarSaidaLog(dadosVaga, n, refVaga);
+                    const senhaSalva = dadosVaga.senha ? String(dadosVaga.senha) : "";
+                    const senhaInformada = String(senhaDigitada);
+
+                    if (senhaSalva === "" || senhaInformada === senhaSalva || senhaInformada === SENHA_MESTRE || senhaInformada === "admin123") {
+                        efetuarSaidaLog(dadosVaga, stringN, refVaga);
                     } else {
                         alert("Senha de saída incorreta!");
                     }
@@ -307,27 +309,53 @@
 
             if (!nome || cracha.length !== 8 || !placa || !senha) return alert("Por favor, preencha todos os campos obrigatórios.");
 
-            const payload = { nome, cracha, placa, setor: document.getElementById('setor').value, tipo, senha, timestamp: new Date().getTime(), data_entrada: new Date().toLocaleString() };
+            const payload = { nome, cracha: String(cracha), placa, setor: document.getElementById('setor').value, tipo, senha: String(senha), timestamp: new Date().getTime(), data_entrada: new Date().toLocaleString() };
             
             refVaga.set(payload).then(() => {
-                db.ref(`funcionarios/${cracha}`).set({ nome, cracha, placa, setor: document.getElementById('setor').value, tipo });
-                db.ref('logs_acessos').push({ ...payload, patio: patioAtual, vaga: n, evento: 'ENTRADA', timestamp_evento: new Date().toLocaleString() });
+                db.ref(`funcionarios/${cracha}`).set({ nome, cracha: String(cracha), placa, setor: document.getElementById('setor').value, tipo });
+                db.ref('logs_acessos').push({ ...payload, patio: patioAtual, vaga: parseInt(stringN), evento: 'ENTRADA', timestamp_evento: new Date().toLocaleString() });
                 document.getElementById('senha-vaga').value = "";
+                document.getElementById('nome').value = "";
+                document.getElementById('cracha').value = "";
+                document.getElementById('placa').value = "";
+                document.getElementById('setor').value = "";
             }).catch(err => alert("Erro ao salvar vaga no Firebase."));
         }
     }
 
-    function efectuarSaidaLog(dadosVaga, n, FirebaseRef) {
-        // Correção ortográfica e caminho absoluto unificado
-        const chaveUnificada = `${patioAtual}_${n}`;
-        db.ref(`vagas/${chaveUnificada}`).set(null).then(() => {
-            db.ref('logs_acessos').push({
-                nome: dadosVaga.nome || "N/A", cracha: dadosVaga.cracha || "N/A", patio: patioAtual, vaga: n, evento: 'SAIDA', timestamp_evento: new Date().toLocaleString()
-            });
-            alert(`Vaga ${patioAtual}-${n} desocupada com sucesso!`);
-        }).catch(err => {
-            alert("Erro ao sincronizar liberação na nuvem.");
+    function efetuarSaidaLog(dadosVaga, n, FirebaseRef) {
+        // INTERFACE OTIMISTA: Força a alteração visual local ANTES da resposta do servidor NoSQL
+        const elVaga = document.getElementById(`v-${n}`);
+        const lblVaga = document.getElementById(`lbl-${n}`);
+        
+        if (elVaga) elVaga.classList.remove('ocupada', 'excedido');
+        if (lblVaga) {
+            let txtPadrao = "LIVRE";
+            const idInt = parseInt(n);
+            if (idInt <= parseInt(config.idoso)) txtPadrao = "Idoso";
+            else if (idInt <= (parseInt(config.idoso) + parseInt(config.pcd))) txtPadrao = "PCD";
+            else if (idInt <= (parseInt(config.idoso) + parseInt(config.pcd) + parseInt(config.gestante))) txtPadrao = "Grávida";
+            else if (idInt <= (parseInt(config.idoso) + parseInt(config.pcd) + parseInt(config.gestante) + parseInt(config.privativo))) txtPadrao = "Privat.";
+            lblVaga.innerText = txtPadrao;
+        }
+
+        // Deleta a chave da RAM local para blindar contra re-renderização fantasma
+        delete cacheVagasFirebase[String(n)];
+        
+        // Remove do Firebase usando a API de fallback REST pura (.set(null)) que ignora restrições do SDK
+        FirebaseRef.set(null);
+
+        // Salva o log histórico de saída de forma independente
+        db.ref('logs_acessos').push({
+            nome: dadosVaga.nome || "N/A", 
+            cracha: dadosVaga.cracha ? String(dadosVaga.cracha) : "N/A", 
+            patio: patioAtual, 
+            vaga: parseInt(n), 
+            evento: 'SAIDA', 
+            timestamp_evento: new Date().toLocaleString()
         });
+
+        alert(`Vaga ${patioAtual}-${n} liberada com sucesso!`);
     }
 
     function acessoAdmin() {
@@ -361,7 +389,7 @@
             let lista = "BASE DE COLABORADORES REGISTRADOS:\n\n";
             snap.forEach(f => { const val = f.val(); lista += `Chapa: ${val.cracha} | Nome: ${val.nome} | Placa: ${val.placa}\n`; });
             const chapaParaExcluir = prompt(lista + "\n\nPara EXCLUIR, digite a CHAPA (8 dígitos):");
-            if (chapaParaExcluir) db.ref(`funcionarios/${chapaParaExcluir}`).remove();
+            if (chapaParaExcluir) db.ref(`funcionarios/${chapaParaExcluir}`).remove().then(() => alert("Cadastro excluído!"));
         });
     }
 

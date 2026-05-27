@@ -232,6 +232,8 @@
     }
 
     function mudarPatio(letra) {
+        // Derruba a escuta antiga do pátio anterior antes de mudar o estado
+        db.ref(`vagas/${patioAtual}`).off();
         patioAtual = letra;
         document.querySelectorAll('.btn-patio').forEach(b => b.classList.remove('active'));
         document.getElementById(`btn-${letra}`).classList.add('active');
@@ -286,6 +288,9 @@
     }
 
     function sincronizarVagas() {
+        // CORREÇÃO: Limpa escutas penduradas na pilha de eventos antes de assinar a nova
+        db.ref(`vagas/${patioAtual}`).off();
+        
         db.ref(`vagas/${patioAtual}`).on('value', snap => {
             cacheVagasFirebase = snap.val() || {};
             let countOcupadas = Object.keys(cacheVagasFirebase).length;
@@ -293,6 +298,7 @@
             document.getElementById('livres-count').innerText = config.total - countOcupadas;
             document.getElementById('ocupadas-count').innerText = countOcupadas;
 
+            // Reseta a interface local do mapa de vagas
             document.querySelectorAll('.grid-vagas .vaga').forEach(el => {
                 el.classList.remove('ocupada', 'excedido');
                 const idVaga = el.id.split('-')[1];
@@ -334,9 +340,9 @@
         }
     }
 
+    // Intervalo de varredura estático para monitoramento
     setInterval(verificarHorariosExcedidos, 30000);
 
-    // BLINDAGEM TOTAL NA FUNÇÃO: Se houver inconsistência de dados antigos, a vaga é limpa à força
     function gerenciarVaga(n) {
         const refVaga = db.ref(`vagas/${patioAtual}/${n}`);
         const vagaExisteNoCache = cacheVagasFirebase.hasOwnProperty(n);
@@ -347,7 +353,7 @@
             if (isAdmin) {
                 const msgAdmin = dadosVaga.nome 
                     ? `• Nome: ${dadosVaga.nome}\n• Chapa: ${dadosVaga.cracha}\n• Placa: ${dadosVaga.placa}\n• Setor: ${dadosVaga.setor}\n• Entrada: ${dadosVaga.data_entrada}`
-                    : `⚠️ Dados inconsistentes/antigos detectados nesta vaga.`;
+                    : `⚠️ Registro inconsistente detectado nesta vaga.`;
 
                 const confirmacaoAdmin = confirm(`📌 INFORMAÇÕES DA VAGA ${patioAtual}-${n}\n\n${msgAdmin}\n\nDeseja FORÇAR A LIBERAÇÃO desta vaga?`);
                 if (confirmacaoAdmin) {
@@ -356,8 +362,8 @@
             } else {
                 const senhaDigitada = prompt(`Estacionamento ${patioAtual} - Vaga ${n} Ocupada.\nDigite sua Senha de Saída para liberar:`);
                 if (senhaDigitada !== null) {
-                    // Se a vaga for antiga e não tiver senha salva, a Senha Mestre limpa ela direto
-                    if (senhaDigitada === dadosVaga.senha || senhaDigitada === SENHA_MESTRE || senhaDigitada === "admin123" || !dadosVaga.senha) {
+                    // Bypass absoluto: se a vaga não contiver o campo de senha estruturado, a liberação ocorre sem travar
+                    if (!dadosVaga.senha || senhaDigitada === dadosVaga.senha || senhaDigitada === SENHA_MESTRE || senhaDigitada === "admin123") {
                         efetuarSaidaLog(dadosVaga, n, refVaga);
                     } else {
                         alert("Senha de saída incorreta!");
@@ -391,7 +397,6 @@
     }
 
     function efectuarSaidaLog(dadosVaga, n, FirebaseRef) {
-        // Cria um log básico mesmo que o registro original seja antigo/incompleto
         const logPayload = {
             nome: dadosVaga.nome || "N/A",
             cracha: dadosVaga.cracha || "N/A",
@@ -404,12 +409,12 @@
             timestamp_evento: new Date().toLocaleString()
         };
 
-        db.ref('logs_acessos').push(logPayload).then(() => {
-            FirebaseRef.remove().then(() => {
-                alert(`Vaga ${patioAtual}-${n} liberada e operacional!`);
-            });
-        }).catch(() => {
-            // Se o log falhar, remove a vaga da tela mesmo assim (prioridade operacional)
+        // Força a remoção imediata da referência NoSQL, garantindo a desocupação em tela
+        FirebaseRef.remove().then(() => {
+            db.ref('logs_acessos').push(logPayload);
+            alert(`Vaga ${patioAtual}-${n} liberada com sucesso!`);
+        }).catch(err => {
+            // Fallback preventivo
             FirebaseRef.remove();
         });
     }
@@ -446,7 +451,6 @@
         });
     }
 
-    // NOVA FUNÇÃO: Listar e Excluir permanentemente os cadastros da base NoSQL
     function verFuncionarios() {
         db.ref('funcionarios').once('value', snap => {
             if(!snap.exists()) return alert("Nenhum registro encontrado na base local.");

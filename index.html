@@ -20,7 +20,7 @@
             --header-bg: rgba(15, 23, 42, 0.85); --primary: #38bdf8; --input-border: #334155;
         }
         body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; transition: 0.3s; min-height: 100vh; display: flex; flex-direction: column; }
-        .header { display: flex; align-items: center; justify-content: space-between; background: var(--header-bg); padding: 12px 35px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 1px 15px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .header { display: flex; align-items: center; justify-content: space-between; background: var(--header-bg); padding: 12px 35px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 1px 15px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
         .logo-jc { height: 24px; opacity: 0.6; object-fit: contain; }
         .logo-embraer { height: 50px; object-fit: contain; }
         .app-title { font-size: 1.3rem; font-weight: 800; color: var(--primary); text-align: center; flex: 1; letter-spacing: 1.5px; }
@@ -62,7 +62,7 @@
 <div class="overlay" id="lgpd-overlay" style="display:block; z-index:1999;"></div>
 <div class="modal" id="lgpd-modal">
     <h3 style="margin-top:0; color: var(--primary); font-weight: 800;">Termo de Privacidade</h3>
-    <div class="lgpd-text">Em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), o aplicativo de gerenciamento solicita seu consentimento para coletar e tratar dados pessoais (Nome, Chapa, Setor e Placa do Veículo) para segurança patrimonial e controle de acesso corporativo.</div>
+    <div class="lgpd-text">Em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), o aplicativo de gerenciamento solicita seu consentimento para coletar e tratar dados pessoais (Nome, Chapa, Setor, Ramal e Placa do Veículo) para segurança patrimonial e controle de acesso corporativo.</div>
     <button onclick="aceitarLGPD()" style="width:100%; padding:14px; background: #10b981; border:none; color:white; border-radius:12px; font-weight:700; cursor:pointer;">CONCORDO E ACESSAR SISTEMA</button>
 </div>
 
@@ -89,6 +89,7 @@
         <input type="number" id="cracha" placeholder="Chapa (8 dígitos)" oninput="if(this.value.length > 8) this.value = this.value.slice(0,8)">
         <input type="text" id="placa" placeholder="Placa do Veículo" style="text-transform: uppercase;">
         <input type="text" id="setor" placeholder="Setor">
+        <input type="text" id="ramal" placeholder="Ramal Telefônico">
         <select id="tipo-usuario">
             <option value="Embraer">Vínculo: Embraer</option>
             <option value="Terceirizados">Vínculo: Terceirizado</option>
@@ -150,6 +151,14 @@
     let config = { total: 1000, idoso: 50, pcd: 50, gestante: 50, privativo: 50, tempoFunc: 480, tempoVis: 120 };
     let isAdmin = false;
     let cacheVagasFirebase = {}; 
+
+    // COORDENADAS REAIS E PONTUAIS DA EMBRAER SJC
+    const COORDENADAS_PATIOS = {
+        'A': { lat: -23.227170, lon: -45.857594 }, 
+        'B': { lat: -23.226077, lon: -45.856152 }, 
+        'C': { lat: -23.219466, lon: -45.852194 }  
+    };
+    const DISTANCIA_MAXIMA_KM = 0.15; // 150m de tolerância física estável
 
     if(localStorage.getItem('park_lgpd_accepted') === 'true') {
         setTimeout(fecharLGPD, 50);
@@ -274,57 +283,109 @@
 
     setInterval(verificarHorariosExcedidos, 30000);
 
+    function calcularDistanciaFisica(lat1, lon1, lat2, lon2) {
+        const R = 6371; 
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c; 
+    }
+
     function gerenciarVaga(n) {
         const stringN = String(n); 
-        const chaveUnificada = `${patioAtual}_${stringN}`;
-        const refVaga = db.ref(`vagas/${chaveUnificada}`);
         const vagaExisteNoCache = cacheVagasFirebase.hasOwnProperty(stringN);
 
-        if (vagaExisteNoCache) {
-            const dadosVaga = cacheVagasFirebase[stringN] || {};
-            
-            if (isAdmin) {
-                if (confirm(`📌 INFORMAÇÕES DA VAGA ${patioAtual}-${stringN}\n\n• Nome: ${dadosVaga.nome || "N/A"}\n• Chapa: ${dadosVaga.cracha || "N/A"}\n• Placa: ${dadosVaga.placa || "N/A"}\n• Setor: ${dadosVaga.setor || "N/A"}\n• Vínculo: ${dadosVaga.tipo || "N/A"}\n• Entrada: ${dadosVaga.data_entrada || "N/A"}\n\nDeseja FORÇAR A LIBERAÇÃO desta vaga?`)) {
-                    efetuarSaidaLog(dadosVaga, stringN, refVaga);
-                }
-            } else {
-                const senhaDigitada = prompt(`Estacionamento ${patioAtual} - Vaga ${stringN} Ocupada.\nDigite sua Senha de Saída para liberar:`);
-                if (senhaDigitada !== null) {
-                    const senhaSalva = dadosVaga.senha ? String(dadosVaga.senha) : "";
-                    const senhaInformada = String(senhaDigitada);
-
-                    if (senhaSalva === "" || senhaInformada === senhaSalva || senhaInformada === SENHA_MESTRE || senhaInformada === "admin123") {
-                        efetuarSaidaLog(dadosVaga, stringN, refVaga);
-                    } else {
-                        alert("Senha de saída incorreta!");
-                    }
-                }
+        if (!vagaExisteNoCache) {
+            if (!navigator.geolocation) {
+                alert("Erro crítico: Seu dispositivo não possui suporte a validação de GPS.");
+                return;
             }
+
+            const lblVaga = document.getElementById(`lbl-${stringN}`);
+            if (lblVaga) lblVaga.innerText = "VALIDANDO...";
+
+            navigator.geolocation.getCurrentPosition(
+                (posicao) => {
+                    const latUsuario = posicao.coords.latitude;
+                    const lonUsuario = posicao.coords.longitude;
+                    const alvoPatio = COORDENADAS_PATIOS[patioAtual];
+                    const distanciaDiferenca = calcularDistanciaFisica(latUsuario, lonUsuario, alvoPatio.lat, alvoPatio.lon);
+
+                    if (distanciaDiferenca > DISTANCIA_MAXIMA_KM) {
+                        alert(`❌ ACESSO BLOQUEADO!\n\nVocê está tentando ocupar uma vaga no Pátio ${patioAtual}, mas seu GPS indica que você está fora do perímetro físico permitido.`);
+                        sincronizarVagas();
+                        return;
+                    }
+
+                    executarFluxoOcupacao(stringN);
+                },
+                (erro) => {
+                    alert("⚠️ PERMISSÃO OBRIGATÓRIA!\n\nPara ocupar vagas na instituição, você deve ativar o GPS do celular e clicar em 'Permitir' no navegador.");
+                    sincronizarVagas();
+                },
+                { enableHighAccuracy: true, timeout: 7000 }
+            );
         } else {
-            const nome = document.getElementById('nome').value;
-            const cracha = document.getElementById('cracha').value;
-            const placa = document.getElementById('placa').value.toUpperCase();
-            const senha = document.getElementById('senha-vaga').value;
-            const tipo = document.getElementById('tipo-usuario').value;
-
-            if (!nome || cracha.length !== 8 || !placa || !senha) return alert("Por favor, preencha todos os campos obrigatórios.");
-
-            const payload = { nome, cracha: String(cracha), placa, setor: document.getElementById('setor').value, tipo, senha: String(senha), timestamp: new Date().getTime(), data_entrada: new Date().toLocaleString() };
-            
-            refVaga.set(payload).then(() => {
-                db.ref(`funcionarios/${cracha}`).set({ nome, cracha: String(cracha), placa, setor: document.getElementById('setor').value, tipo });
-                db.ref('logs_acessos').push({ ...payload, patio: patioAtual, vaga: parseInt(stringN), evento: 'ENTRADA', timestamp_evento: new Date().toLocaleString() });
-                document.getElementById('senha-vaga').value = "";
-                document.getElementById('nome').value = "";
-                document.getElementById('cracha').value = "";
-                document.getElementById('placa').value = "";
-                document.getElementById('setor').value = "";
-            }).catch(err => alert("Erro ao salvar vaga no Firebase."));
+            executarFluxoSaida(stringN);
         }
     }
 
+    function ejecutarFluxoSaida(stringN) {
+        const chaveUnificada = `${patioAtual}_${stringN}`;
+        const refVaga = db.ref(`vagas/${chaveUnificada}`);
+        const dadosVaga = cacheVagasFirebase[stringN] || {};
+
+        if (isAdmin) {
+            if (confirm(`📌 INFORMAÇÕES DA VAGA ${patioAtual}-${stringN}\n\n• Nome: ${dadosVaga.nome || "N/A"}\n• Chapa: ${dadosVaga.cracha || "N/A"}\n• Placa: ${dadosVaga.placa || "N/A"}\n• Setor: ${dadosVaga.setor || "N/A"}\n• Ramal: ${dadosVaga.ramal || "N/A"}\n• Entrada: ${dadosVaga.data_entrada || "N/A"}\n\nDeseja FORÇAR A LIBERAÇÃO desta vaga?`)) {
+                efetuarSaidaLog(dadosVaga, stringN, refVaga);
+            }
+        } else {
+            const senhaDigitada = prompt(`Estacionamento ${patioAtual} - Vaga ${stringN} Ocupada.\nDigite sua Senha de Saída para liberar:`);
+            if (senhaDigitada !== null) {
+                const senhaSalva = dadosVaga.senha ? String(dadosVaga.senha) : "";
+                const senhaInformada = String(senhaDigitada);
+
+                if (senhaSalva === "" || senhaInformada === senhaSalva || senhaInformada === SENHA_MESTRE || senhaInformada === "admin123") {
+                    efetuarSaidaLog(dadosVaga, stringN, refVaga);
+                } else {
+                    alert("Senha de saída incorreta!");
+                }
+            }
+        }
+    }
+
+    function executarFluxoOcupacao(stringN) {
+        const chaveUnificada = `${patioAtual}_${stringN}`;
+        const refVaga = db.ref(`vagas/${chaveUnificada}`);
+
+        const nome = document.getElementById('nome').value;
+        const cracha = document.getElementById('cracha').value;
+        const placa = document.getElementById('placa').value.toUpperCase();
+        const setor = document.getElementById('setor').value;
+        const ramal = document.getElementById('ramal').value;
+        const senha = document.getElementById('senha-vaga').value;
+        const tipo = document.getElementById('tipo-usuario').value;
+
+        if (!nome || cracha.length !== 8 || !placa || !senha) return alert("Por favor, preencha todos os campos obrigatórios.");
+
+        const payload = { nome, cracha: String(cracha), placa, setor, ramal: String(ramal), tipo, senha: String(senha), timestamp: new Date().getTime(), data_entrada: new Date().toLocaleString() };
+        
+        refVaga.set(payload).then(() => {
+            db.ref(`funcionarios/${cracha}`).set({ nome, cracha: String(cracha), placa, setor, ramal: String(ramal), tipo });
+            db.ref('logs_acessos').push({ ...payload, patio: patioAtual, vaga: parseInt(stringN), evento: 'ENTRADA', timestamp_evento: new Date().toLocaleString() });
+            document.getElementById('senha-vaga').value = "";
+            document.getElementById('nome').value = "";
+            document.getElementById('cracha').value = "";
+            document.getElementById('placa').value = "";
+            document.getElementById('setor').value = "";
+            document.getElementById('ramal').value = "";
+        }).catch(err => alert("Erro ao salvar vaga no Firebase."));
+    }
+
     function efetuarSaidaLog(dadosVaga, n, FirebaseRef) {
-        // INTERFACE OTIMISTA: Força a alteração visual local ANTES da resposta do servidor NoSQL
         const elVaga = document.getElementById(`v-${n}`);
         const lblVaga = document.getElementById(`lbl-${n}`);
         
@@ -339,20 +400,11 @@
             lblVaga.innerText = txtPadrao;
         }
 
-        // Deleta a chave da RAM local para blindar contra re-renderização fantasma
         delete cacheVagasFirebase[String(n)];
-        
-        // Remove do Firebase usando a API de fallback REST pura (.set(null)) que ignora restrições do SDK
         FirebaseRef.set(null);
 
-        // Salva o log histórico de saída de forma independente
         db.ref('logs_acessos').push({
-            nome: dadosVaga.nome || "N/A", 
-            cracha: dadosVaga.cracha ? String(dadosVaga.cracha) : "N/A", 
-            patio: patioAtual, 
-            vaga: parseInt(n), 
-            evento: 'SAIDA', 
-            timestamp_evento: new Date().toLocaleString()
+            nome: dadosVaga.nome || "N/A", cracha: dadosVaga.cracha ? String(dadosVaga.cracha) : "N/A", patio: patioAtual, vaga: parseInt(n), evento: 'SAIDA', ramal: dadosVaga.ramal ? String(dadosVaga.ramal) : "N/A", timestamp_evento: new Date().toLocaleString()
         });
 
         alert(`Vaga ${patioAtual}-${n} liberada com sucesso!`);
@@ -387,7 +439,7 @@
         db.ref('funcionarios').once('value', snap => {
             if(!snap.exists()) return alert("Nenhum registro encontrado.");
             let lista = "BASE DE COLABORADORES REGISTRADOS:\n\n";
-            snap.forEach(f => { const val = f.val(); lista += `Chapa: ${val.cracha} | Nome: ${val.nome} | Placa: ${val.placa}\n`; });
+            snap.forEach(f => { const val = f.val(); lista += `Chapa: ${val.cracha} | Nome: ${val.nome} | Ramal: ${val.ramal || "N/A"} | Placa: ${val.placa}\n`; });
             const chapaParaExcluir = prompt(lista + "\n\nPara EXCLUIR, digite a CHAPA (8 dígitos):");
             if (chapaParaExcluir) db.ref(`funcionarios/${chapaParaExcluir}`).remove().then(() => alert("Cadastro excluído!"));
         });
@@ -396,8 +448,8 @@
     function exportarRelatorio() {
         db.ref('logs_acessos').once('value', snap => {
             if(!snap.exists()) return alert("Sem dados para exportação.");
-            let csv = "Data Evento,Evento,Patio,Vaga,Nome,Chapa\n";
-            snap.forEach(child => { const d = child.val(); csv += `"${d.timestamp_evento}","${d.evento}","${d.patio}","${d.vaga}","${d.nome}","${d.cracha}"\n`; });
+            let csv = "Data Evento,Evento,Patio,Vaga,Nome,Chapa,Ramal\n";
+            snap.forEach(child => { const d = child.val(); csv += `"${d.timestamp_evento}","${d.evento}","${d.patio}","${d.vaga}","${d.nome}","${d.cracha}","${d.ramal || "N/A"}"\n`; });
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);

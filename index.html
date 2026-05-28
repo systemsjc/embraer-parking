@@ -48,7 +48,7 @@
         .info-vaga { font-size: 0.5rem; margin-top: 4px; text-align: center; font-weight: 600; opacity: 0.8; text-transform: uppercase; }
         .vaga.ocupada .info-vaga { color: white; }
         .fab-container { position: fixed; bottom: 80px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 101; }
-        .btn-fab { width: 48px; height: 48px; border-radius: 50%; border: none; background: var(--card); color: var(--text); cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 1.1rem; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.1); }
+        .btn-fab { width: 48px; height: 48px; border-radius: 50%; border: none; background: var(--card); color: var(--text); cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 1.1rem; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.1); }
         .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--card); padding: 30px; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); z-index: 1000; width: 85%; max-width: 450px; max-height: 80vh; overflow-y: auto; }
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 999; }
         .footer { background: var(--footer-bg); color: var(--footer-text); text-align: center; padding: 20px 10px; font-size: 0.85rem; margin-top: auto; border-top: 1px solid rgba(255,255,255,0.05); }
@@ -152,13 +152,13 @@
     let isAdmin = false;
     let cacheVagasFirebase = {}; 
 
-    // COORDENADAS REAIS E PONTUAIS DA EMBRAER SJC
+    // COORDENADAS PONTUAIS DA INSTITUIÇÃO INTEGRADAS VIA GPS
     const COORDENADAS_PATIOS = {
         'A': { lat: -23.227170, lon: -45.857594 }, 
         'B': { lat: -23.226077, lon: -45.856152 }, 
         'C': { lat: -23.219466, lon: -45.852194 }  
     };
-    const DISTANCIA_MAXIMA_KM = 0.15; // 150m de tolerância física estável
+    const DISTANCIA_MAXIMA_KM = 0.15; // Perímetro estrito de segurança (150 Metros)
 
     if(localStorage.getItem('park_lgpd_accepted') === 'true') {
         setTimeout(fecharLGPD, 50);
@@ -329,31 +329,8 @@
                 { enableHighAccuracy: true, timeout: 7000 }
             );
         } else {
+            // CORRIGIDO: Nome unificado de chamada da função ajustado de "ejecutarFluxoSaida" para "executarFluxoSaida"
             executarFluxoSaida(stringN);
-        }
-    }
-
-    function ejecutarFluxoSaida(stringN) {
-        const chaveUnificada = `${patioAtual}_${stringN}`;
-        const refVaga = db.ref(`vagas/${chaveUnificada}`);
-        const dadosVaga = cacheVagasFirebase[stringN] || {};
-
-        if (isAdmin) {
-            if (confirm(`📌 INFORMAÇÕES DA VAGA ${patioAtual}-${stringN}\n\n• Nome: ${dadosVaga.nome || "N/A"}\n• Chapa: ${dadosVaga.cracha || "N/A"}\n• Placa: ${dadosVaga.placa || "N/A"}\n• Setor: ${dadosVaga.setor || "N/A"}\n• Ramal: ${dadosVaga.ramal || "N/A"}\n• Entrada: ${dadosVaga.data_entrada || "N/A"}\n\nDeseja FORÇAR A LIBERAÇÃO desta vaga?`)) {
-                efetuarSaidaLog(dadosVaga, stringN, refVaga);
-            }
-        } else {
-            const senhaDigitada = prompt(`Estacionamento ${patioAtual} - Vaga ${stringN} Ocupada.\nDigite sua Senha de Saída para liberar:`);
-            if (senhaDigitada !== null) {
-                const senhaSalva = dadosVaga.senha ? String(dadosVaga.senha) : "";
-                const senhaInformada = String(senhaDigitada);
-
-                if (senhaSalva === "" || senhaInformada === senhaSalva || senhaInformada === SENHA_MESTRE || senhaInformada === "admin123") {
-                    efetuarSaidaLog(dadosVaga, stringN, refVaga);
-                } else {
-                    alert("Senha de saída incorreta!");
-                }
-            }
         }
     }
 
@@ -385,7 +362,32 @@
         }).catch(err => alert("Erro ao salvar vaga no Firebase."));
     }
 
+    function executarFluxoSaida(stringN) {
+        const chaveUnificada = `${patioAtual}_${stringN}`;
+        const refVaga = db.ref(`vagas/${chaveUnificada}`);
+        const dadosVaga = cacheVagasFirebase[stringN] || {};
+
+        if (isAdmin) {
+            if (confirm(`📌 INFORMAÇÕES DA VAGA ${patioAtual}-${stringN}\n\n• Nome: ${dadosVaga.nome || "N/A"}\n• Chapa: ${dadosVaga.cracha || "N/A"}\n• Placa: ${dadosVaga.placa || "N/A"}\n• Setor: ${dadosVaga.setor || "N/A"}\n• Ramal: ${dadosVaga.ramal || "N/A"}\n• Entrada: ${dadosVaga.data_entrada || "N/A"}\n\nDeseja FORÇAR A LIBERAÇÃO desta vaga?`)) {
+                efetuarSaidaLog(dadosVaga, stringN, refVaga);
+            }
+        } else {
+            const senhaDigitada = prompt(`Estacionamento ${patioAtual} - Vaga ${stringN} Ocupada.\nDigite sua Senha de Saída para liberar:`);
+            if (senhaDigitada !== null) {
+                const senhaSalva = dadosVaga.senha ? String(dadosVaga.senha) : "";
+                const senhaInformada = String(senhaDigitada);
+
+                if (senhaSalva === "" || senhaInformada === senhaSalva || senhaInformada === SENHA_MESTRE || senhaInformada === "admin123") {
+                    efetuarSaidaLog(dadosVaga, stringN, refVaga);
+                } else {
+                    alert("Senha de saída incorreta!");
+                }
+            }
+        }
+    }
+
     function efetuarSaidaLog(dadosVaga, n, FirebaseRef) {
+        // INTERFACE OTIMISTA: Força a alteração visual local ANTES da resposta do servidor NoSQL
         const elVaga = document.getElementById(`v-${n}`);
         const lblVaga = document.getElementById(`lbl-${n}`);
         

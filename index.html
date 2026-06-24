@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Estacionamento Embraer</title>
     
+    <!-- CDNs das Bibliotecas Necessárias -->
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
@@ -140,9 +141,10 @@
         projectId: "jc-systems-park-4f67b",
         storageBucket: "jc-systems-park-4f67b.firebasestorage.app",
         messagingSenderId: "741479720172",
-        appId:
-            
-                firebase.initializeApp(firebaseConfig);
+        appId: "1:741479720172:web:0fe85b07955b0fedb0b1c9"
+    };
+
+    firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const SENHA_MESTRE = "ozs1232026";
     
@@ -151,16 +153,13 @@
     let isAdmin = false;
     let cacheVagasFirebase = {}; 
 
-    // COORDENADAS PONTUAIS DA INSTITUIÇÃO INTEGRADAS VIA GPS
+    // COORDENADAS DOS TRÊS PÁTIOS DA EMBRAER
     const COORDENADAS_PATIOS = {
         'A': { lat: -23.227170, lon: -45.857594 }, 
         'B': { lat: -23.226077, lon: -45.856152 }, 
         'C': { lat: -23.219466, lon: -45.852194 }  
     };
-    
-    // AQUI ESTÁ A ALTERAÇÃO COM OPERAÇÃO DE MARGEM EXPANDIDA
-    const DISTANCIA_MAXIMA_KM = 0.3; // 300m de tolerância física estável
-
+    const DISTANCIA_MAXIMA_KM = 0.3; // Raio estrito de 300 Metros
 
     if(localStorage.getItem('park_lgpd_accepted') === 'true') {
         setTimeout(fecharLGPD, 50);
@@ -331,7 +330,6 @@
                 { enableHighAccuracy: true, timeout: 7000 }
             );
         } else {
-            // CORRIGIDO: Nome unificado de chamada da função ajustado de "ejecutarFluxoSaida" para "executarFluxoSaida"
             executarFluxoSaida(stringN);
         }
     }
@@ -389,7 +387,6 @@
     }
 
     function efetuarSaidaLog(dadosVaga, n, FirebaseRef) {
-        // INTERFACE OTIMISTA: Força a alteração visual local ANTES da resposta do servidor NoSQL
         const elVaga = document.getElementById(`v-${n}`);
         const lblVaga = document.getElementById(`lbl-${n}`);
         

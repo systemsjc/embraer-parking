@@ -140,10 +140,9 @@
         projectId: "jc-systems-park-4f67b",
         storageBucket: "jc-systems-park-4f67b.firebasestorage.app",
         messagingSenderId: "741479720172",
-        appId: "1:741479720172:web:0fe85b07955b0fedb0b1c9"
-    };
-
-    firebase.initializeApp(firebaseConfig);
+        appId:
+            
+                firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const SENHA_MESTRE = "ozs1232026";
     
@@ -158,7 +157,10 @@
         'B': { lat: -23.226077, lon: -45.856152 }, 
         'C': { lat: -23.219466, lon: -45.852194 }  
     };
-    const DISTANCIA_MAXIMA_KM = 0.15; // Perímetro estrito de segurança (150 Metros)
+    
+    // AQUI ESTÁ A ALTERAÇÃO COM OPERAÇÃO DE MARGEM EXPANDIDA
+    const DISTANCIA_MAXIMA_KM = 0.3; // 300m de tolerância física estável
+
 
     if(localStorage.getItem('park_lgpd_accepted') === 'true') {
         setTimeout(fecharLGPD, 50);
